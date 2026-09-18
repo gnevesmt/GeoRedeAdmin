@@ -81,6 +81,12 @@ dialog{width:min(620px,94vw);background:var(--panel);color:var(--text);border:1p
       </div>
       <div id="masterLicenseControls" class="hidden" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
         <h3>Controles da licença — Master</h3>
+        <div class="grid3">
+          <label class="field">Limite Mobile<input id="licenseMobile" type="number" min="0" max="500"></label>
+          <label class="field">Limite Desktop<input id="licenseDesktop" type="number" min="0" max="200"></label>
+          <label class="field">Offline (dias)<input id="licenseOffline" type="number" min="1" max="60"></label>
+        </div>
+        <div class="actions"><button id="saveLicenseControls" class="primary">Salvar limites</button></div>
         <div class="actions">
           <button class="ghost renewDays" data-days="30">+30 dias</button>
           <button class="ghost renewDays" data-days="60">+60 dias</button>
@@ -232,6 +238,7 @@ function render(){
     const desk=sub.max_desktop_devices_override??plan?.max_desktop_devices??0,mob=sub.max_mobile_devices_override??plan?.max_mobile_devices??0;
     const ad=devices.filter(d=>d.kind==="desktop"&&d.status==="active").length,am=devices.filter(d=>d.kind==="mobile"&&d.status==="active").length;
     $("#ovStatus").innerHTML=badge(sub.status);$("#ovEnd").textContent=dateOnly(sub.current_period_end);$("#ovMobile").textContent=am+" / "+mob;$("#ovDesktop").textContent=ad+" / "+desk;
+    if(actor.is_master){$("#licenseMobile").value=mob;$("#licenseDesktop").value=desk;$("#licenseOffline").value=sub.offline_days_override??plan?.offline_days??7}
     $("#toggleLicense").textContent=sub.status==="suspended"?"Reativar licença":"Suspender licença";
     $("#toggleLicense").className=sub.status==="suspended"?"success":"danger";
   }else{$("#ovStatus").textContent="—";$("#ovEnd").textContent="—";$("#ovMobile").textContent="—";$("#ovDesktop").textContent="—"}
@@ -288,6 +295,7 @@ document.body.addEventListener("click",async e=>{const t=e.target.closest("butto
   else if(t.dataset.revokeDevice){const r=await api("revoke_device",{device_id:t.dataset.revokeDevice});notify(r.message||"Dispositivo revogado.");await load()}
   else if(t.classList.contains("renewDays")){const sub=subByOrg(selectedOrgId);if(!sub)return;const r=await api("renew_subscription",{subscription_id:sub.id,mode:"days",days:Number(t.dataset.days),from:$("#renewFrom").value});notify(r.message);await load()}
 }catch(err){notify(err.message,true)}});
+$("#saveLicenseControls").addEventListener("click",async()=>{const sub=subByOrg(selectedOrgId);if(!sub)return;try{const r=await api("update_controls",{subscription_id:sub.id,max_mobile:$("#licenseMobile").value,max_desktop:$("#licenseDesktop").value,offline_days:$("#licenseOffline").value});notify(r.message);await load()}catch(err){notify(err.message,true)}});
 $("#setExactDate").addEventListener("click",async()=>{const sub=subByOrg(selectedOrgId),end=$("#licenseEndDate").value;if(!sub||!end)return notify("Informe a data.",true);try{const r=await api("renew_subscription",{subscription_id:sub.id,mode:"date",end_date:end});notify(r.message);await load()}catch(err){notify(err.message,true)}});
 $("#toggleLicense").addEventListener("click",async()=>{const sub=subByOrg(selectedOrgId);if(!sub)return;try{await api("set_subscription_status",{subscription_id:sub.id,status:sub.status==="suspended"?"active":"suspended"});notify("Licença atualizada.");await load()}catch(err){notify(err.message,true)}});
 const {data:{session:existing}}=await supabase.auth.getSession();if(existing){session=existing;try{await load();$("#login").classList.add("hidden");$("#app").classList.remove("hidden")}catch{await supabase.auth.signOut();session=null}}
