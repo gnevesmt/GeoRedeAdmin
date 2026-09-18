@@ -116,10 +116,23 @@ const profileBy = id => state.profiles.find(x=>x.id===id);
 const membershipByUser = id => state.members.find(x=>x.user_id===id);
 
 function notify(msg,bad=false){const n=$("#notice");n.textContent=msg;n.className="notice"+(bad?" bad":"");clearTimeout(notify.t);notify.t=setTimeout(()=>n.classList.add("hidden"),3500)}
+function statusLabel(status){
+  const s=String(status||"");
+  return ({
+    active:"Ativo", trial:"Teste", pending:"Pendente", revoked:"Revogado",
+    suspended:"Suspensa", past_due:"Em atraso", canceled:"Cancelada",
+    blocked:"Bloqueado"
+  })[s] || s;
+}
 function badge(status){
   const s=String(status||"");
-  const cls=["active","Ativo","active"].includes(s)?"b-ok":["pending","trial","past_due"].includes(s)?"b-warn":"b-bad";
-  return '<span class="badge '+cls+'">'+esc(s)+'</span>';
+  const cls=["active","Ativo"].includes(s)?"b-ok":["pending","trial","past_due"].includes(s)?"b-warn":"b-bad";
+  return '<span class="badge '+cls+'">'+esc(statusLabel(s))+'</span>';
+}
+function deviceCode(d){
+  const prefix=d.kind==="mobile"?"MOB":"DESK";
+  const tail=String(d.device_key||"").slice(-8).toUpperCase();
+  return prefix+"-"+tail;
 }
 async function api(action,data={}){
   const token=session?.access_token;
@@ -151,11 +164,13 @@ function render(){
     const desk=s.max_desktop_devices_override ?? p?.max_desktop_devices ?? 0;
     const mob=s.max_mobile_devices_override ?? p?.max_mobile_devices ?? 0;
     const off=s.offline_days_override ?? p?.offline_days ?? 7;
+    const activeDesk=state.devices.filter(d=>d.organization_id===o.id&&d.kind==="desktop"&&d.status==="active").length;
+    const activeMob=state.devices.filter(d=>d.organization_id===o.id&&d.kind==="mobile"&&d.status==="active").length;
     return '<tr>'+
       '<td><b>'+esc(o.trade_name||o.legal_name)+'</b><br><span class="muted">'+esc(o.document||"")+'</span><br>'+badge(o.active?"Ativo":"Bloqueado")+'</td>'+
       '<td>'+esc(p?.name||"—")+'<br>'+badge(s.status)+'</td>'+
       '<td>'+dateOnly(s.current_period_end)+'</td>'+
-      '<td><div class="compact"><input aria-label="Desktop" id="d_'+s.id+'" type="number" min="0" value="'+desk+'"><input aria-label="Mobile" id="m_'+s.id+'" type="number" min="0" value="'+mob+'"><input aria-label="Offline" id="o_'+s.id+'" type="number" min="1" value="'+off+'"><button class="ghost" data-update-controls="'+s.id+'">Salvar</button></div><div class="muted" style="font-size:11px;margin-top:5px">Desktop • Mobile • Offline</div></td>'+
+      '<td><div style="margin-bottom:7px"><b>Uso:</b> Desktop '+activeDesk+'/'+desk+' • Mobile '+activeMob+'/'+mob+'</div><div class="compact"><input title="Limite Desktop" aria-label="Desktop" id="d_'+s.id+'" type="number" min="0" value="'+desk+'"><input title="Limite Mobile" aria-label="Mobile" id="m_'+s.id+'" type="number" min="0" value="'+mob+'"><input title="Dias offline" aria-label="Offline" id="o_'+s.id+'" type="number" min="1" value="'+off+'"><button class="ghost" data-update-controls="'+s.id+'">Salvar</button></div><div class="muted" style="font-size:11px;margin-top:5px">Limite Desktop • Limite Mobile • Dias offline</div></td>'+
       '<td><div class="actions">'+
         '<button class="'+(o.active?"danger":"success")+'" data-client-active="'+o.id+'" data-next="'+(!o.active)+'">'+(o.active?"Bloquear empresa":"Reativar empresa")+'</button>'+
         '<button class="'+(s.status==="suspended"?"success":"danger")+'" data-sub-status="'+s.id+'" data-status="'+(s.status==="suspended"?"active":"suspended")+'">'+(s.status==="suspended"?"Reativar licença":"Suspender licença")+'</button>'+
@@ -165,13 +180,25 @@ function render(){
 
   $("#usersBody").innerHTML=state.profiles.filter(p=>membershipByUser(p.id)).map(p=>{
     const m=membershipByUser(p.id),o=orgBy(m?.organization_id);
-    return '<tr><td><b>'+esc(p.full_name||p.username)+'</b><br><span class="muted">'+esc(p.email||"")+'</span></td><td>'+esc(o?.trade_name||o?.legal_name||"—")+'</td><td>'+esc(m?.role==="admin"?"Administrador do cliente":"Operador")+'</td><td>'+badge(p.active?"Ativo":"Bloqueado")+'</td><td><button class="'+(p.active?"danger":"success")+'" data-user-active="'+p.id+'" data-next="'+(!p.active)+'">'+(p.active?"Bloquear":"Liberar")+'</button></td></tr>';
+    const mobile=state.devices.find(d=>d.user_id===p.id&&d.kind==="mobile"&&d.status==="active");
+    const desktop=state.devices.find(d=>d.user_id===p.id&&d.kind==="desktop"&&d.status==="active");
+    const activeInfo='<div class="muted" style="font-size:11px;margin-top:4px">Mobile: '+esc(mobile?deviceCode(mobile):"nenhum")+' • Desktop: '+esc(desktop?deviceCode(desktop):"nenhum")+'</div>';
+    return '<tr><td><b>'+esc(p.full_name||p.username)+'</b><br><span class="muted">'+esc(p.email||"")+'</span>'+activeInfo+'</td><td>'+esc(o?.trade_name||o?.legal_name||"—")+'</td><td>'+esc(m?.role==="admin"?"Administrador do cliente":"Operador")+'</td><td>'+badge(p.active?"Ativo":"Bloqueado")+'</td><td><button class="'+(p.active?"danger":"success")+'" data-user-active="'+p.id+'" data-next="'+(!p.active)+'">'+(p.active?"Bloquear":"Liberar")+'</button></td></tr>';
   }).join("")||'<tr><td colspan="5" class="empty">Nenhum usuário de cliente.</td></tr>';
 
   $("#devicesBody").innerHTML=state.devices.map(d=>{
     const o=orgBy(d.organization_id),p=profileBy(d.user_id);
-    const act=d.status==="pending"?'<button class="success" data-approve-device="'+d.id+'">Autorizar</button>':d.status==="active"?'<button class="danger" data-revoke-device="'+d.id+'">Revogar</button>':'<button class="success" data-approve-device="'+d.id+'">Reautorizar</button>';
-    return '<tr class="'+(d.status==="pending"?"pending":"")+'"><td><b>'+esc(d.display_name||d.device_key)+'</b><br><span class="muted">'+esc(d.device_key)+'</span></td><td>'+esc(o?.trade_name||o?.legal_name||"—")+'<br><span class="muted">'+esc(p?.full_name||p?.email||p?.username||"")+'</span></td><td>'+esc(d.kind)+'</td><td>'+badge(d.status)+'</td><td>'+fmt(d.last_seen_at)+'</td><td>'+act+'</td></tr>';
+    const otherActive=state.devices.find(x=>x.id!==d.id&&x.user_id===d.user_id&&x.kind===d.kind&&x.status==="active");
+    let act="";
+    if(d.status==="active"){
+      act='<button class="danger" data-revoke-device="'+d.id+'">Revogar</button>';
+    }else if(d.status==="pending"){
+      act='<button class="success" data-approve-device="'+d.id+'">'+(otherActive?"Substituir aparelho":"Autorizar")+'</button>';
+    }else{
+      act='<button class="success" data-approve-device="'+d.id+'">'+(otherActive?"Reativar e substituir":"Reautorizar")+'</button>';
+    }
+    const relation=d.replaced_device_id?'<div class="muted" style="font-size:11px">Substituiu outro aparelho</div>':d.replaced_by_device_id?'<div class="muted" style="font-size:11px">Foi substituído por outro aparelho</div>':"";
+    return '<tr class="'+(d.status==="pending"?"pending":"")+'"><td><b>'+esc(d.display_name||d.device_key)+'</b><br><span class="muted">GeoRede ID: '+esc(deviceCode(d))+'</span>'+relation+'</td><td>'+esc(o?.trade_name||o?.legal_name||"—")+'<br><span class="muted">'+esc(p?.full_name||p?.email||p?.username||"")+'</span></td><td>'+esc(d.kind==="mobile"?"Mobile":"Desktop")+'</td><td>'+badge(d.status)+'</td><td>'+fmt(d.last_seen_at)+'</td><td>'+act+'</td></tr>';
   }).join("")||'<tr><td colspan="6" class="empty">Nenhum dispositivo registrado.</td></tr>';
 
   $("#auditBody").innerHTML=state.events.map(e=>{
@@ -212,8 +239,8 @@ document.body.addEventListener("click",async e=>{
     else if(t.dataset.renew){await api("renew_subscription",{subscription_id:t.dataset.renew,days:30});notify("Licença prorrogada por 30 dias.");await load()}
     else if(t.dataset.updateControls){const id=t.dataset.updateControls;await api("update_controls",{subscription_id:id,max_desktop:$("#d_"+id).value,max_mobile:$("#m_"+id).value,offline_days:$("#o_"+id).value});notify("Limites atualizados.");await load()}
     else if(t.dataset.userActive){await api("set_user_active",{user_id:t.dataset.userActive,active:t.dataset.next==="true"});notify("Usuário atualizado.");await load()}
-    else if(t.dataset.approveDevice){await api("approve_device",{device_id:t.dataset.approveDevice});notify("Dispositivo autorizado.");await load()}
-    else if(t.dataset.revokeDevice){await api("revoke_device",{device_id:t.dataset.revokeDevice});notify("Dispositivo revogado.");await load()}
+    else if(t.dataset.approveDevice){const r=await api("approve_device",{device_id:t.dataset.approveDevice});notify(r.message||"Dispositivo autorizado.");await load()}
+    else if(t.dataset.revokeDevice){const r=await api("revoke_device",{device_id:t.dataset.revokeDevice});notify(r.message||"Dispositivo revogado.");await load()}
   }catch(err){notify(err.message,true)}
 });
 
