@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GeoRede Admin</title>
+<style>
+:root{color-scheme:dark;--bg:#0a0f14;--panel:#111820;--panel2:#17212b;--line:#263442;--text:#eef5fb;--muted:#90a1b2;--ok:#4ec98b;--warn:#f0b85a;--bad:#ef7272;--accent:#49a8ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,Segoe UI,Arial,sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+.login{min-height:100vh;display:grid;place-items:center;padding:24px}.login-card{width:min(430px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px}
+.brand{font-weight:800;font-size:25px;letter-spacing:.2px}.sub{color:var(--muted);margin-top:5px}.field{display:grid;gap:6px;margin-top:16px}.field input,.field select,.field textarea,.compact input,.compact select{width:100%;background:#0d141b;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px 12px;outline:none}.field input:focus,.field select:focus,.compact input:focus,.compact select:focus{border-color:var(--accent)}
+.primary,.ghost,.danger,.success{border:1px solid transparent;border-radius:10px;padding:10px 13px;color:var(--text);font-weight:700}.primary{background:var(--accent);color:#06121d}.ghost{background:transparent;border-color:var(--line)}.danger{background:#3a171b;border-color:#6b2a31}.success{background:#123226;border-color:#265f48}
+#app{max-width:1460px;margin:auto;padding:20px}.top{display:flex;gap:14px;justify-content:space-between;align-items:center;margin-bottom:18px}.master{color:var(--muted);font-size:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}.kpi b{display:block;font-size:26px;margin-top:3px}.kpi span{color:var(--muted);font-size:12px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px}.tab{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:9px 12px}.tab.active{background:var(--panel2);color:var(--text);border-color:#3b536b}
+.grid2{display:grid;grid-template-columns:380px 1fr;gap:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}.card h3{margin:0 0 8px}.hint{color:var(--muted);font-size:12px;margin-bottom:12px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.formgrid .span2{grid-column:1/-1}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:820px}th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);background:#0e151c;position:sticky;top:0}tr:last-child td{border-bottom:0}
+.badge{display:inline-flex;padding:4px 8px;border-radius:999px;border:1px solid var(--line);font-size:11px}.b-ok{color:var(--ok);border-color:#275942}.b-warn{color:var(--warn);border-color:#6f5527}.b-bad{color:var(--bad);border-color:#67343a}
+.compact{display:grid;grid-template-columns:70px 70px 70px auto;gap:6px;align-items:center}.compact input{padding:7px 8px}.compact button{padding:8px 9px}
+.notice{position:fixed;right:18px;bottom:18px;max-width:380px;background:#13202b;border:1px solid #35516a;border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px #0008;z-index:20}.notice.bad{border-color:#7a3339}
+.empty{color:var(--muted);padding:18px}.muted{color:var(--muted)}.pending{border-left:3px solid var(--warn)}
+@media(max-width:900px){.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.formgrid{grid-template-columns:1fr}.formgrid .span2{grid-column:auto}}
+@media(max-width:520px){#app{padding:12px}.kpis{grid-template-columns:1fr}.login-card{padding:20px}}
+</style>
+</head>
+<body>
+<section id="login" class="login">
+  <form id="loginForm" class="login-card">
+    <div class="brand">GeoRede Admin</div>
+    <div class="sub">Painel proprietário de licenças e acessos</div>
+    <label class="field">E-mail Master<input id="loginEmail" type="email" autocomplete="username" required></label>
+    <label class="field">Senha<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+    <div class="actions"><button class="primary" type="submit">Entrar como Master</button></div>
+    <div id="loginError" class="sub" style="margin-top:12px"></div>
+  </form>
+</section>
+
+<main id="app" class="hidden">
+  <header class="top">
+    <div><div class="brand">GeoRede Admin</div><div class="master" id="masterLine"></div></div>
+    <button id="logoutBtn" class="ghost">Sair</button>
+  </header>
+  <section class="kpis">
+    <div class="kpi"><span>Clientes ativos</span><b id="kClients">0</b></div>
+    <div class="kpi"><span>Licenças ativas</span><b id="kLicenses">0</b></div>
+    <div class="kpi"><span>Usuários ativos</span><b id="kUsers">0</b></div>
+    <div class="kpi"><span>Dispositivos pendentes</span><b id="kPending">0</b></div>
+  </section>
+  <nav class="tabs">
+    <button class="tab active" data-tab="clients">Clientes e Licenças</button>
+    <button class="tab" data-tab="users">Usuários</button>
+    <button class="tab" data-tab="devices">Dispositivos</button>
+    <button class="tab" data-tab="audit">Auditoria</button>
+  </nav>
+
+  <section id="clients" class="panel grid2">
+    <form id="clientForm" class="card">
+      <h3>Novo cliente</h3><div class="hint">Crie a empresa e sua licença inicial.</div>
+      <div class="formgrid">
+        <label class="field span2">Razão social<input name="legal_name" required></label>
+        <label class="field span2">Nome fantasia<input name="trade_name"></label>
+        <label class="field span2">CNPJ/Documento<input name="document"></label>
+        <label class="field span2">Plano<select name="plan_id" id="clientPlan" required></select></label>
+        <label class="field">Desktop<input name="max_desktop" type="number" min="0" max="200" value="1"></label>
+        <label class="field">Mobile<input name="max_mobile" type="number" min="0" max="500" value="1"></label>
+        <label class="field">Validade (dias)<input name="days" type="number" min="1" max="3660" value="30"></label>
+        <label class="field">Offline (dias)<input name="offline_days" type="number" min="1" max="60" value="7"></label>
+        <label class="field span2">Tipo<select name="status"><option value="trial">Teste</option><option value="active">Ativa</option></select></label>
+      </div>
+      <div class="actions"><button class="primary">Cadastrar cliente</button></div>
+    </form>
+    <div class="card"><h3>Clientes cadastrados</h3><div class="hint">Bloqueio da empresa é global. Suspensão da licença bloqueia o uso na próxima validação.</div><div class="tablewrap"><table><thead><tr><th>Cliente</th><th>Licença</th><th>Validade</th><th>Controles</th><th>Ações</th></tr></thead><tbody id="clientsBody"></tbody></table></div></div>
+  </section>
+
+  <section id="users" class="panel grid2 hidden">
+    <form id="userForm" class="card">
+      <h3>Novo usuário do cliente</h3><div class="hint">Crie a credencial que será usada no GeoRede Mobile/Desktop.</div>
+      <label class="field">Cliente<select name="organization_id" id="userOrg" required></select></label>
+      <label class="field">Nome completo<input name="full_name" required></label>
+      <label class="field">E-mail<input name="email" type="email" required></label>
+      <label class="field">Senha temporária<input name="password" type="password" minlength="8" required></label>
+      <label class="field">Perfil<select name="member_role"><option value="member">Operador</option><option value="admin">Administrador do cliente</option></select></label>
+      <div class="actions"><button class="primary">Criar usuário</button></div>
+    </form>
+    <div class="card"><h3>Usuários</h3><div class="tablewrap"><table><thead><tr><th>Nome</th><th>Cliente</th><th>Perfil</th><th>Status</th><th>Ação</th></tr></thead><tbody id="usersBody"></tbody></table></div></div>
+  </section>
+
+  <section id="devices" class="panel hidden">
+    <div class="card"><h3>Solicitações e dispositivos</h3><div class="hint">Novo aparelho entra como Pendente. Somente o Master pode autorizar.</div><div class="tablewrap"><table><thead><tr><th>Dispositivo</th><th>Cliente / usuário</th><th>Tipo</th><th>Status</th><th>Último acesso</th><th>Ação</th></tr></thead><tbody id="devicesBody"></tbody></table></div></div>
+  </section>
+
+  <section id="audit" class="panel hidden">
+    <div class="card"><h3>Auditoria administrativa</h3><div class="hint">Histórico das principais decisões de acesso e licenciamento.</div><div class="tablewrap"><table><thead><tr><th>Data</th><th>Evento</th><th>Cliente</th><th>Detalhes</th></tr></thead><tbody id="auditBody"></tbody></table></div></div>
+  </section>
+</main>
+<div id="notice" class="notice hidden"></div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm";
+
+const supabase = createClient("https://uzsmsecjgmzlfdafyjai.supabase.co", "sb_publishable_KP6pUOtCB5U_KvA2Z25ghw_n-Xqqbmq");
+const endpoint = "https://uzsmsecjgmzlfdafyjai.supabase.co/functions/v1/georede-admin";
+let state = { organizations:[], subscriptions:[], plans:[], devices:[], members:[], profiles:[], events:[] };
+let session = null;
+
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = v => v ? new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short"}).format(new Date(v)) : "—";
+const dateOnly = v => v ? new Intl.DateTimeFormat("pt-BR",{dateStyle:"short"}).format(new Date(v)) : "—";
+const orgBy = id => state.organizations.find(x=>x.id===id);
+const subByOrg = id => state.subscriptions.find(x=>x.organization_id===id);
+const planBy = id => state.plans.find(x=>x.id===id);
+const profileBy = id => state.profiles.find(x=>x.id===id);
+const membershipByUser = id => state.members.find(x=>x.user_id===id);
+
+function notify(msg,bad=false){const n=$("#notice");n.textContent=msg;n.className="notice"+(bad?" bad":"");clearTimeout(notify.t);notify.t=setTimeout(()=>n.classList.add("hidden"),3500)}
+function badge(status){
+  const s=String(status||"");
+  const cls=["active","Ativo","active"].includes(s)?"b-ok":["pending","trial","past_due"].includes(s)?"b-warn":"b-bad";
+  return '<span class="badge '+cls+'">'+esc(s)+'</span>';
+}
+async function api(action,data={}){
+  const token=session?.access_token;
+  const r=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+token},body:JSON.stringify({action,...data})});
+  const j=await r.json().catch(()=>({error:"Resposta inválida"}));
+  if(!r.ok||j.error) throw new Error(j.error||"Falha");
+  return j;
+}
+async function load(){
+  const j=await api("dashboard");
+  state=j.data; $("#masterLine").textContent=(j.master.name||j.master.email)+" • Administrador Master";
+  render();
+}
+function render(){
+  const activeOrgs=state.organizations.filter(x=>x.active).length;
+  const activeSubs=state.subscriptions.filter(x=>["active","trial"].includes(x.status)&&new Date(x.current_period_end)>=new Date()).length;
+  const activeUsers=state.profiles.filter(x=>x.active&&membershipByUser(x.id)).length;
+  const pending=state.devices.filter(x=>x.status==="pending").length;
+  $("#kClients").textContent=activeOrgs;$("#kLicenses").textContent=activeSubs;$("#kUsers").textContent=activeUsers;$("#kPending").textContent=pending;
+
+  const planOpts=state.plans.filter(x=>x.active).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("");
+  $("#clientPlan").innerHTML=planOpts;
+  const orgOpts=state.organizations.map(x=>'<option value="'+x.id+'">'+esc(x.trade_name||x.legal_name)+'</option>').join("");
+  $("#userOrg").innerHTML=orgOpts;
+
+  $("#clientsBody").innerHTML=state.organizations.length?state.organizations.map(o=>{
+    const s=subByOrg(o.id), p=s?planBy(s.plan_id):null;
+    if(!s) return '<tr><td>'+esc(o.trade_name||o.legal_name)+'</td><td colspan="4">Sem licença</td></tr>';
+    const desk=s.max_desktop_devices_override ?? p?.max_desktop_devices ?? 0;
+    const mob=s.max_mobile_devices_override ?? p?.max_mobile_devices ?? 0;
+    const off=s.offline_days_override ?? p?.offline_days ?? 7;
+    return '<tr>'+
+      '<td><b>'+esc(o.trade_name||o.legal_name)+'</b><br><span class="muted">'+esc(o.document||"")+'</span><br>'+badge(o.active?"Ativo":"Bloqueado")+'</td>'+
+      '<td>'+esc(p?.name||"—")+'<br>'+badge(s.status)+'</td>'+
+      '<td>'+dateOnly(s.current_period_end)+'</td>'+
+      '<td><div class="compact"><input aria-label="Desktop" id="d_'+s.id+'" type="number" min="0" value="'+desk+'"><input aria-label="Mobile" id="m_'+s.id+'" type="number" min="0" value="'+mob+'"><input aria-label="Offline" id="o_'+s.id+'" type="number" min="1" value="'+off+'"><button class="ghost" data-update-controls="'+s.id+'">Salvar</button></div><div class="muted" style="font-size:11px;margin-top:5px">Desktop • Mobile • Offline</div></td>'+
+      '<td><div class="actions">'+
+        '<button class="'+(o.active?"danger":"success")+'" data-client-active="'+o.id+'" data-next="'+(!o.active)+'">'+(o.active?"Bloquear empresa":"Reativar empresa")+'</button>'+
+        '<button class="'+(s.status==="suspended"?"success":"danger")+'" data-sub-status="'+s.id+'" data-status="'+(s.status==="suspended"?"active":"suspended")+'">'+(s.status==="suspended"?"Reativar licença":"Suspender licença")+'</button>'+
+        '<button class="ghost" data-renew="'+s.id+'">+30 dias</button>'+
+      '</div></td></tr>';
+  }).join(""):'<tr><td colspan="5" class="empty">Nenhum cliente cadastrado.</td></tr>';
+
+  $("#usersBody").innerHTML=state.profiles.filter(p=>membershipByUser(p.id)).map(p=>{
+    const m=membershipByUser(p.id),o=orgBy(m?.organization_id);
+    return '<tr><td><b>'+esc(p.full_name||p.username)+'</b><br><span class="muted">'+esc(p.email||"")+'</span></td><td>'+esc(o?.trade_name||o?.legal_name||"—")+'</td><td>'+esc(m?.role==="admin"?"Administrador do cliente":"Operador")+'</td><td>'+badge(p.active?"Ativo":"Bloqueado")+'</td><td><button class="'+(p.active?"danger":"success")+'" data-user-active="'+p.id+'" data-next="'+(!p.active)+'">'+(p.active?"Bloquear":"Liberar")+'</button></td></tr>';
+  }).join("")||'<tr><td colspan="5" class="empty">Nenhum usuário de cliente.</td></tr>';
+
+  $("#devicesBody").innerHTML=state.devices.map(d=>{
+    const o=orgBy(d.organization_id),p=profileBy(d.user_id);
+    const act=d.status==="pending"?'<button class="success" data-approve-device="'+d.id+'">Autorizar</button>':d.status==="active"?'<button class="danger" data-revoke-device="'+d.id+'">Revogar</button>':'<button class="success" data-approve-device="'+d.id+'">Reautorizar</button>';
+    return '<tr class="'+(d.status==="pending"?"pending":"")+'"><td><b>'+esc(d.display_name||d.device_key)+'</b><br><span class="muted">'+esc(d.device_key)+'</span></td><td>'+esc(o?.trade_name||o?.legal_name||"—")+'<br><span class="muted">'+esc(p?.full_name||p?.email||p?.username||"")+'</span></td><td>'+esc(d.kind)+'</td><td>'+badge(d.status)+'</td><td>'+fmt(d.last_seen_at)+'</td><td>'+act+'</td></tr>';
+  }).join("")||'<tr><td colspan="6" class="empty">Nenhum dispositivo registrado.</td></tr>';
+
+  $("#auditBody").innerHTML=state.events.map(e=>{
+    const o=orgBy(e.organization_id);
+    return '<tr><td>'+fmt(e.created_at)+'</td><td>'+esc(e.event_type)+'</td><td>'+esc(o?.trade_name||o?.legal_name||"—")+'</td><td><span class="muted">'+esc(JSON.stringify(e.details||{}))+'</span></td></tr>';
+  }).join("")||'<tr><td colspan="4" class="empty">Sem eventos.</td></tr>';
+}
+
+$("#loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();$("#loginError").textContent="Entrando...";
+  const email=$("#loginEmail").value.trim(),password=$("#loginPassword").value;
+  const {data,error}=await supabase.auth.signInWithPassword({email,password});
+  if(error){$("#loginError").textContent=error.message;return}
+  session=data.session;
+  try{await load();$("#login").classList.add("hidden");$("#app").classList.remove("hidden")}
+  catch(err){await supabase.auth.signOut();session=null;$("#loginError").textContent=err.message}
+});
+$("#logoutBtn").addEventListener("click",async()=>{await supabase.auth.signOut();location.reload()});
+
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  document.querySelectorAll(".panel").forEach(x=>x.classList.add("hidden"));$("#"+b.dataset.tab).classList.remove("hidden");
+}));
+
+$("#clientForm").addEventListener("submit",async e=>{
+  e.preventDefault();const fd=new FormData(e.target);const data=Object.fromEntries(fd.entries());
+  try{await api("create_client",data);notify("Cliente cadastrado.");e.target.reset();await load()}catch(err){notify(err.message,true)}
+});
+$("#userForm").addEventListener("submit",async e=>{
+  e.preventDefault();const fd=new FormData(e.target);const data=Object.fromEntries(fd.entries());
+  try{await api("create_user",data);notify("Usuário criado.");e.target.reset();await load()}catch(err){notify(err.message,true)}
+});
+document.body.addEventListener("click",async e=>{
+  const t=e.target.closest("button");if(!t)return;
+  try{
+    if(t.dataset.clientActive){await api("set_client_active",{organization_id:t.dataset.clientActive,active:t.dataset.next==="true"});notify("Cliente atualizado.");await load()}
+    else if(t.dataset.subStatus){await api("set_subscription_status",{subscription_id:t.dataset.subStatus,status:t.dataset.status});notify("Licença atualizada.");await load()}
+    else if(t.dataset.renew){await api("renew_subscription",{subscription_id:t.dataset.renew,days:30});notify("Licença prorrogada por 30 dias.");await load()}
+    else if(t.dataset.updateControls){const id=t.dataset.updateControls;await api("update_controls",{subscription_id:id,max_desktop:$("#d_"+id).value,max_mobile:$("#m_"+id).value,offline_days:$("#o_"+id).value});notify("Limites atualizados.");await load()}
+    else if(t.dataset.userActive){await api("set_user_active",{user_id:t.dataset.userActive,active:t.dataset.next==="true"});notify("Usuário atualizado.");await load()}
+    else if(t.dataset.approveDevice){await api("approve_device",{device_id:t.dataset.approveDevice});notify("Dispositivo autorizado.");await load()}
+    else if(t.dataset.revokeDevice){await api("revoke_device",{device_id:t.dataset.revokeDevice});notify("Dispositivo revogado.");await load()}
+  }catch(err){notify(err.message,true)}
+});
+
+const {data:{session:existing}}=await supabase.auth.getSession();
+if(existing){session=existing;try{await load();$("#login").classList.add("hidden");$("#app").classList.remove("hidden")}catch{await supabase.auth.signOut();session=null}}
+</script>
+</body></html>
