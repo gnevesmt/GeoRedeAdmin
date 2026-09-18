@@ -15,7 +15,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:
 .primary,.ghost,.danger,.success{border:1px solid transparent;border-radius:10px;padding:9px 12px;color:var(--text);font-weight:700}
 .primary{background:var(--accent);color:#06121d}.ghost{background:transparent;border-color:var(--line)}.danger{background:#3a171b;border-color:#6b2a31}.success{background:#123226;border-color:#265f48}
 #app{max-width:1500px;margin:auto;padding:20px}.top{display:flex;gap:14px;justify-content:space-between;align-items:center;margin-bottom:16px}.roleline{color:var(--muted);font-size:12px}
-.scopebar{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);padding:10px 12px;border-radius:12px;margin-bottom:14px}.scopebar select{max-width:420px}
+.masterbar{display:flex;gap:10px;align-items:center;background:#0d151c;border:1px solid var(--line);padding:10px 12px;border-radius:12px;margin-bottom:12px}
+.masterbar .section-title{font-weight:800;margin-right:4px}.scopebar{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);padding:10px 12px;border-radius:12px;margin-bottom:14px}.scopebar select{max-width:420px}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.kpi,.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}.kpi b{display:block;font-size:25px;margin-top:3px}.kpi span{color:var(--muted);font-size:12px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px}.tab{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:9px 12px}.tab.active{background:var(--panel2);color:var(--text);border-color:#3b536b}
 .grid2{display:grid;grid-template-columns:360px 1fr;gap:16px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card h3{margin:0 0 8px}.hint{color:var(--muted);font-size:12px;margin-bottom:12px}
@@ -48,8 +49,15 @@ dialog{width:min(620px,94vw);background:var(--panel);color:var(--text);border:1p
     <button id="logoutBtn" class="ghost">Sair</button>
   </header>
 
+  <div id="masterBar" class="masterbar hidden">
+    <span class="section-title">Gestão Master</span>
+    <button id="globalClientsBtn" class="ghost">Clientes</button>
+    <span class="muted">Gestão geral de empresas e licenças</span>
+  </div>
+
   <div id="scopeBar" class="scopebar hidden">
-    <b>Cliente aberto:</b>
+    <button id="backClientsBtn" class="ghost">← Clientes</button>
+    <b>Cliente selecionado:</b>
     <select id="scopeOrg"></select>
   </div>
 
@@ -60,9 +68,8 @@ dialog{width:min(620px,94vw);background:var(--panel);color:var(--text);border:1p
     <div class="kpi"><span>Dispositivos pendentes</span><b id="kPending">0</b></div>
   </section>
 
-  <nav class="tabs">
+  <nav id="clientTabs" class="tabs">
     <button class="tab active" data-tab="overview">Visão Geral</button>
-    <button id="tabClients" class="tab" data-tab="clients">Clientes</button>
     <button class="tab" data-tab="users">Usuários</button>
     <button class="tab" data-tab="devices">Dispositivos</button>
     <button class="tab" data-tab="audit">Auditoria</button>
@@ -180,6 +187,7 @@ const supabase=createClient("https://uzsmsecjgmzlfdafyjai.supabase.co","sb_publi
 const endpoint="https://uzsmsecjgmzlfdafyjai.supabase.co/functions/v1/georede-admin";
 let state={organizations:[],subscriptions:[],plans:[],devices:[],members:[],profiles:[],events:[]};
 let actor=null,session=null,selectedOrgId=null;
+let currentMode="client",currentClientTab="overview",initialized=false;
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 const fmt=v=>v?new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short"}).format(new Date(v)):"—";
@@ -196,11 +204,17 @@ function badge(s){const c=["active","Ativo"].includes(s)?"b-ok":["pending","tria
 function deviceCode(d){return(d.kind==="mobile"?"MOB":"DESK")+"-"+String(d.device_key||"").slice(-8).toUpperCase()}
 function roleLabel(r){return r==="admin"||r==="owner"?"Administrador do Cliente":"Operador"}
 async function api(action,data={}){const r=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+session.access_token},body:JSON.stringify({action,...data})});const j=await r.json().catch(()=>({error:"Resposta inválida"}));if(!r.ok||j.error)throw new Error(j.error||"Falha");return j}
-async function load(){const j=await api("dashboard");actor=j.actor;state=j.data;if(!actor.is_master)selectedOrgId=actor.organization_id;else if(!selectedOrgId&&state.organizations.length)selectedOrgId=state.organizations[0].id;configureRole();render()}
+async function load(){
+  const j=await api("dashboard");actor=j.actor;state=j.data;
+  if(!actor.is_master) selectedOrgId=actor.organization_id;
+  else if(!selectedOrgId&&state.organizations.length) selectedOrgId=state.organizations[0].id;
+  if(!initialized){currentMode=actor.is_master?"clients":"client";initialized=true}
+  configureRole();render();applyMode();
+}
 function configureRole(){
   $("#actorLine").textContent=(actor.name||actor.email)+" • "+(actor.role==="master"?"Administrador Master":"Administrador do Cliente");
-  $("#tabClients").classList.toggle("hidden",!actor.is_master);
-  $("#scopeBar").classList.toggle("hidden",!actor.is_master);
+  $("#masterBar").classList.toggle("hidden",!actor.is_master);
+  $("#backClientsBtn").classList.toggle("hidden",!actor.is_master);
   $("#masterLicenseControls").classList.toggle("hidden",!actor.is_master);
   if(actor.is_master){
     $("#scopeOrg").innerHTML=state.organizations.map(o=>'<option value="'+o.id+'">'+esc(o.trade_name||o.legal_name)+'</option>').join("");
@@ -210,11 +224,19 @@ function configureRole(){
 function render(){
   const org=orgBy(selectedOrgId),sub=subByOrg(selectedOrgId),plan=sub?planBy(sub.plan_id):null;
   const members=scoped(state.members),devices=scoped(state.devices),profiles=state.profiles.filter(p=>members.some(m=>m.user_id===p.id));
-  $("#k1Label").textContent=actor.is_master?"Clientes ativos":"Empresa";
-  $("#k1").textContent=actor.is_master?state.organizations.filter(x=>x.active).length:(org?.active?"Ativa":"Bloqueada");
-  $("#kUsers").textContent=members.filter(m=>m.active&&profileBy(m.user_id)?.active).length;
-  $("#kDevices").textContent=devices.filter(d=>d.status==="active").length;
-  $("#kPending").textContent=devices.filter(d=>d.status==="pending").length;
+  if(currentMode==="clients"&&actor.is_master){
+    $("#k1Label").textContent="Clientes ativos";
+    $("#k1").textContent=state.organizations.filter(x=>x.active).length;
+    $("#kUsers").textContent=state.members.filter(m=>m.active&&profileBy(m.user_id)?.active).length;
+    $("#kDevices").textContent=state.devices.filter(d=>d.status==="active").length;
+    $("#kPending").textContent=state.devices.filter(d=>d.status==="pending").length;
+  }else{
+    $("#k1Label").textContent="Status do cliente";
+    $("#k1").textContent=org?.active?"Ativo":"Bloqueado";
+    $("#kUsers").textContent=members.filter(m=>m.active&&profileBy(m.user_id)?.active).length;
+    $("#kDevices").textContent=devices.filter(d=>d.status==="active").length;
+    $("#kPending").textContent=devices.filter(d=>d.status==="pending").length;
+  }
   $("#overviewTitle").textContent=org?(org.trade_name||org.legal_name):"Visão Geral";
   $("#overviewHint").textContent=actor.is_master?"Gestão comercial e operacional do cliente aberto.":"Licença somente para consulta. Cadastros e dispositivos podem ser administrados conforme seu perfil.";
   if(sub){
@@ -259,17 +281,47 @@ function renderDevices(){
 function renderAudit(){
   $("#auditBody").innerHTML=scoped(state.events).map(e=>{const uid=e.details?.user_id||e.details?.new_user_id;const p=profileBy(uid);return '<tr><td>'+fmt(e.created_at)+'</td><td>'+esc(e.event_type)+'</td><td>'+esc(p?.full_name||uid||"—")+'</td><td><span class="muted">'+esc(JSON.stringify(e.details||{}))+'</span></td></tr>'}).join("")||'<tr><td colspan="4" class="empty">Sem eventos neste escopo.</td></tr>';
 }
-function openTab(id){document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.dataset.tab===id));document.querySelectorAll(".panel").forEach(x=>x.classList.add("hidden"));$("#"+id).classList.remove("hidden")}
+function showClientTab(id){
+  currentMode="client";currentClientTab=id;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.dataset.tab===id));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.add("hidden"));
+  $("#"+id).classList.remove("hidden");
+  $("#clientTabs").classList.remove("hidden");
+  $("#scopeBar").classList.toggle("hidden",!actor.is_master);
+}
+function showClientsGlobal(){
+  if(!actor?.is_master)return;
+  currentMode="clients";
+  document.querySelectorAll(".panel").forEach(x=>x.classList.add("hidden"));
+  $("#clients").classList.remove("hidden");
+  $("#clientTabs").classList.add("hidden");
+  $("#scopeBar").classList.add("hidden");
+  render();
+}
+function applyMode(){
+  if(actor.is_master&&currentMode==="clients"){
+    document.querySelectorAll(".panel").forEach(x=>x.classList.add("hidden"));
+    $("#clients").classList.remove("hidden");
+    $("#clientTabs").classList.add("hidden");
+    $("#scopeBar").classList.add("hidden");
+  }else{
+    $("#clientTabs").classList.remove("hidden");
+    $("#scopeBar").classList.toggle("hidden",!actor.is_master);
+    showClientTab(currentClientTab||"overview");
+  }
+}
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();$("#loginError").textContent="Entrando...";const {data,error}=await supabase.auth.signInWithPassword({email:$("#loginEmail").value.trim(),password:$("#loginPassword").value});if(error){$("#loginError").textContent=error.message;return}session=data.session;try{await load();$("#login").classList.add("hidden");$("#app").classList.remove("hidden")}catch(err){await supabase.auth.signOut();session=null;$("#loginError").textContent=err.message}});
 $("#logoutBtn").addEventListener("click",async()=>{await supabase.auth.signOut();location.reload()});
-document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>openTab(b.dataset.tab)));
-$("#scopeOrg").addEventListener("change",()=>{selectedOrgId=$("#scopeOrg").value;render()});
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>showClientTab(b.dataset.tab)));
+$("#globalClientsBtn").addEventListener("click",()=>showClientsGlobal());
+$("#backClientsBtn").addEventListener("click",()=>showClientsGlobal());
+$("#scopeOrg").addEventListener("change",()=>{selectedOrgId=$("#scopeOrg").value;currentMode="client";currentClientTab="overview";render();applyMode()});
 $("#clientForm").addEventListener("submit",async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target).entries());try{await api("create_client",d);notify("Cliente cadastrado.");e.target.reset();await load()}catch(err){notify(err.message,true)}});
 $("#userForm").addEventListener("submit",async e=>{e.preventDefault();if(!selectedOrgId)return;const fd=new FormData(e.target);const d=Object.fromEntries(fd.entries());d.mobile_allowed=fd.has("mobile_allowed");d.desktop_allowed=fd.has("desktop_allowed");try{await api("create_user",{organization_id:selectedOrgId,...d});notify("Usuário criado.");e.target.reset();renderRoleOptions();await load()}catch(err){notify(err.message,true)}});
 $("#editUserForm").addEventListener("submit",async e=>{e.preventDefault();const fd=new FormData(e.target),d=Object.fromEntries(fd.entries());d.mobile_allowed=fd.has("mobile_allowed");d.desktop_allowed=fd.has("desktop_allowed");try{await api("update_user",{organization_id:selectedOrgId,...d});$("#editDialog").close();notify("Usuário atualizado.");await load()}catch(err){notify(err.message,true)}});
 $("#cancelEdit").addEventListener("click",()=>$("#editDialog").close());
 document.body.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;try{
-  if(t.dataset.openClient){selectedOrgId=t.dataset.openClient;$("#scopeOrg").value=selectedOrgId;render();openTab("overview")}
+  if(t.dataset.openClient){selectedOrgId=t.dataset.openClient;currentMode="client";currentClientTab="overview";$("#scopeOrg").value=selectedOrgId;render();applyMode()}
   else if(t.dataset.clientActive){await api("set_client_active",{organization_id:t.dataset.clientActive,active:t.dataset.next==="true"});notify("Cliente atualizado.");await load()}
   else if(t.dataset.editUser){const m=memberByUser(t.dataset.editUser),p=profileBy(t.dataset.editUser);if(!m||!p)return;const f=$("#editUserForm");f.elements.user_id.value=m.user_id;f.elements.full_name.value=p.full_name||p.username||"";f.elements.email.value=p.email||"";renderRoleOptions();f.elements.member_role.value=m.role;f.elements.mobile_allowed.checked=!!m.mobile_allowed;f.elements.desktop_allowed.checked=!!m.desktop_allowed;$("#editDialog").showModal()}
   else if(t.dataset.userActive){await api("set_user_active",{organization_id:t.dataset.org,user_id:t.dataset.userActive,active:t.dataset.next==="true"});notify("Usuário atualizado.");await load()}
