@@ -63,7 +63,6 @@ dialog{width:min(620px,94vw);background:var(--panel);color:var(--text);border:1p
   <nav class="tabs">
     <button class="tab active" data-tab="overview">Visão Geral</button>
     <button id="tabClients" class="tab" data-tab="clients">Clientes</button>
-    <button class="tab" data-tab="sites">Bases</button>
     <button class="tab" data-tab="users">Usuários</button>
     <button class="tab" data-tab="devices">Dispositivos</button>
     <button class="tab" data-tab="audit">Auditoria</button>
@@ -129,18 +128,6 @@ dialog{width:min(620px,94vw);background:var(--panel);color:var(--text);border:1p
     </div>
   </section>
 
-  <section id="sites" class="panel grid2 hidden">
-    <form id="siteForm" class="card">
-      <h3>Nova base</h3>
-      <div class="hint">As bases organizam usuários e administradores locais.</div>
-      <label class="field">Código<input name="code" placeholder="CF" maxlength="30" required></label>
-      <label class="field">Nome da base<input name="name" placeholder="Confresa" required></label>
-      <label class="field">Cidade<input name="city" placeholder="Confresa - MT"></label>
-      <div class="actions"><button class="primary">Cadastrar base</button></div>
-    </form>
-    <div class="card"><h3>Bases cadastradas</h3><div class="tablewrap"><table><thead><tr><th>Base</th><th>Cidade</th><th>Usuários</th><th>Status</th><th>Ação</th></tr></thead><tbody id="sitesBody"></tbody></table></div></div>
-  </section>
-
   <section id="users" class="panel grid2 hidden">
     <form id="userForm" class="card">
       <h3>Novo usuário</h3>
@@ -149,18 +136,17 @@ dialog{width:min(620px,94vw);background:var(--panel);color:var(--text);border:1p
       <label class="field">E-mail<input name="email" type="email" required></label>
       <label class="field">Senha temporária<input name="password" type="password" minlength="8" required></label>
       <label class="field">Perfil<select name="member_role" id="newRole"></select></label>
-      <label class="field">Base<select name="site_id" id="newSite"></select></label>
       <div class="checkrow">
         <label><input name="mobile_allowed" type="checkbox" checked> Mobile</label>
         <label><input name="desktop_allowed" type="checkbox"> Desktop</label>
       </div>
       <div class="actions"><button class="primary">Criar usuário</button></div>
     </form>
-    <div class="card"><h3>Usuários do cliente</h3><div class="tablewrap"><table><thead><tr><th>Usuário</th><th>Base</th><th>Perfil</th><th>Acessos</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersBody"></tbody></table></div></div>
+    <div class="card"><h3>Usuários do cliente</h3><div class="tablewrap"><table><thead><tr><th>Usuário</th><th>Perfil</th><th>Acessos</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersBody"></tbody></table></div></div>
   </section>
 
   <section id="devices" class="panel hidden">
-    <div class="card"><h3>Dispositivos</h3><div class="hint">A autorização de um novo aparelho substitui automaticamente o aparelho ativo do mesmo usuário e tipo.</div><div class="tablewrap"><table><thead><tr><th>Dispositivo</th><th>Usuário</th><th>Base</th><th>Tipo</th><th>Status</th><th>Último acesso</th><th>Ação</th></tr></thead><tbody id="devicesBody"></tbody></table></div></div>
+    <div class="card"><h3>Dispositivos</h3><div class="hint">A autorização de um novo aparelho substitui automaticamente o aparelho ativo do mesmo usuário e tipo.</div><div class="tablewrap"><table><thead><tr><th>Dispositivo</th><th>Usuário</th><th>Tipo</th><th>Status</th><th>Último acesso</th><th>Ação</th></tr></thead><tbody id="devicesBody"></tbody></table></div></div>
   </section>
 
   <section id="audit" class="panel hidden">
@@ -175,7 +161,6 @@ dialog{width:min(620px,94vw);background:var(--panel);color:var(--text);border:1p
     <label class="field">Nome<input name="full_name" required></label>
     <label class="field">E-mail<input name="email" type="email" required></label>
     <label class="field">Perfil<select name="member_role" id="editRole"></select></label>
-    <label class="field">Base<select name="site_id" id="editSite"></select></label>
     <div class="checkrow">
       <label><input name="mobile_allowed" type="checkbox"> Mobile</label>
       <label><input name="desktop_allowed" type="checkbox"> Desktop</label>
@@ -193,7 +178,7 @@ dialog{width:min(620px,94vw);background:var(--panel);color:var(--text);border:1p
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm";
 const supabase=createClient("https://uzsmsecjgmzlfdafyjai.supabase.co","sb_publishable_KP6pUOtCB5U_KvA2Z25ghw_n-Xqqbmq");
 const endpoint="https://uzsmsecjgmzlfdafyjai.supabase.co/functions/v1/georede-admin";
-let state={organizations:[],subscriptions:[],plans:[],devices:[],members:[],sites:[],profiles:[],events:[]};
+let state={organizations:[],subscriptions:[],plans:[],devices:[],members:[],profiles:[],events:[]};
 let actor=null,session=null,selectedOrgId=null;
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
@@ -204,17 +189,16 @@ const subByOrg=id=>state.subscriptions.find(x=>x.organization_id===id);
 const planBy=id=>state.plans.find(x=>x.id===id);
 const profileBy=id=>state.profiles.find(x=>x.id===id);
 const memberByUser=id=>state.members.find(x=>x.user_id===id);
-const siteBy=id=>state.sites.find(x=>x.id===id);
 const scoped=a=>selectedOrgId?a.filter(x=>x.organization_id===selectedOrgId):a;
 function notify(msg,bad=false){const n=$("#notice");n.textContent=msg;n.className="notice"+(bad?" bad":"");clearTimeout(notify.t);notify.t=setTimeout(()=>n.classList.add("hidden"),3800)}
 function statusLabel(s){return({active:"Ativo",trial:"Teste",pending:"Pendente",revoked:"Revogado",suspended:"Suspensa",past_due:"Em atraso",canceled:"Cancelada"})[s]||s}
 function badge(s){const c=["active","Ativo"].includes(s)?"b-ok":["pending","trial","past_due"].includes(s)?"b-warn":"b-bad";return '<span class="badge '+c+'">'+esc(statusLabel(s))+'</span>'}
 function deviceCode(d){return(d.kind==="mobile"?"MOB":"DESK")+"-"+String(d.device_key||"").slice(-8).toUpperCase()}
-function roleLabel(r){return r==="admin"||r==="owner"?"Administrador do Cliente":r==="site_admin"?"Administrador de Base":"Operador"}
+function roleLabel(r){return r==="admin"||r==="owner"?"Administrador do Cliente":"Operador"}
 async function api(action,data={}){const r=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+session.access_token},body:JSON.stringify({action,...data})});const j=await r.json().catch(()=>({error:"Resposta inválida"}));if(!r.ok||j.error)throw new Error(j.error||"Falha");return j}
 async function load(){const j=await api("dashboard");actor=j.actor;state=j.data;if(!actor.is_master)selectedOrgId=actor.organization_id;else if(!selectedOrgId&&state.organizations.length)selectedOrgId=state.organizations[0].id;configureRole();render()}
 function configureRole(){
-  $("#actorLine").textContent=(actor.name||actor.email)+" • "+(actor.role==="master"?"Administrador Master":actor.role==="client_admin"?"Administrador do Cliente":"Administrador de Base");
+  $("#actorLine").textContent=(actor.name||actor.email)+" • "+(actor.role==="master"?"Administrador Master":"Administrador do Cliente");
   $("#tabClients").classList.toggle("hidden",!actor.is_master);
   $("#scopeBar").classList.toggle("hidden",!actor.is_master);
   $("#masterLicenseControls").classList.toggle("hidden",!actor.is_master);
@@ -222,13 +206,12 @@ function configureRole(){
     $("#scopeOrg").innerHTML=state.organizations.map(o=>'<option value="'+o.id+'">'+esc(o.trade_name||o.legal_name)+'</option>').join("");
     $("#scopeOrg").value=selectedOrgId||"";
   }
-  $("#siteForm").classList.toggle("hidden",actor.role==="site_admin");
 }
 function render(){
   const org=orgBy(selectedOrgId),sub=subByOrg(selectedOrgId),plan=sub?planBy(sub.plan_id):null;
-  const members=scoped(state.members),devices=scoped(state.devices),sites=scoped(state.sites),profiles=state.profiles.filter(p=>members.some(m=>m.user_id===p.id));
-  $("#k1Label").textContent=actor.is_master?"Clientes ativos":"Bases ativas";
-  $("#k1").textContent=actor.is_master?state.organizations.filter(x=>x.active).length:sites.filter(x=>x.active).length;
+  const members=scoped(state.members),devices=scoped(state.devices),profiles=state.profiles.filter(p=>members.some(m=>m.user_id===p.id));
+  $("#k1Label").textContent=actor.is_master?"Clientes ativos":"Empresa";
+  $("#k1").textContent=actor.is_master?state.organizations.filter(x=>x.active).length:(org?.active?"Ativa":"Bloqueada");
   $("#kUsers").textContent=members.filter(m=>m.active&&profileBy(m.user_id)?.active).length;
   $("#kDevices").textContent=devices.filter(d=>d.status==="active").length;
   $("#kPending").textContent=devices.filter(d=>d.status==="pending").length;
@@ -242,35 +225,36 @@ function render(){
     $("#toggleLicense").textContent=sub.status==="suspended"?"Reativar licença":"Suspender licença";
     $("#toggleLicense").className=sub.status==="suspended"?"success":"danger";
   }else{$("#ovStatus").textContent="—";$("#ovEnd").textContent="—";$("#ovMobile").textContent="—";$("#ovDesktop").textContent="—"}
-  renderClients();renderSites();renderRoleOptions();renderUsers();renderDevices();renderAudit();
+  renderClients();renderRoleOptions();renderUsers();renderDevices();renderAudit();
   $("#clientPlan").innerHTML=state.plans.filter(x=>x.active).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("");
 }
 function renderClients(){
   if(!actor?.is_master)return;
   $("#clientsList").innerHTML=state.organizations.map(o=>{const s=subByOrg(o.id),p=s?planBy(s.plan_id):null;const d=state.devices.filter(x=>x.organization_id===o.id&&x.kind==="desktop"&&x.status==="active").length,m=state.devices.filter(x=>x.organization_id===o.id&&x.kind==="mobile"&&x.status==="active").length;const dl=s?(s.max_desktop_devices_override??p?.max_desktop_devices??0):0,ml=s?(s.max_mobile_devices_override??p?.max_mobile_devices??0):0;return '<div class="metric" style="margin-bottom:10px"><div class="clientrow"><div><b>'+esc(o.trade_name||o.legal_name)+'</b><div class="muted">'+esc(o.document||"")+'</div><div style="margin-top:6px">'+badge(o.active?"Ativo":"Bloqueado")+' '+(s?badge(s.status):"")+'</div><div class="muted" style="margin-top:6px">Mobile '+m+'/'+ml+' • Desktop '+d+'/'+dl+(s?' • validade '+dateOnly(s.current_period_end):"")+'</div></div><div class="actions"><button class="ghost" data-open-client="'+o.id+'">Abrir</button><button class="'+(o.active?"danger":"success")+'" data-client-active="'+o.id+'" data-next="'+(!o.active)+'">'+(o.active?"Bloquear":"Reativar")+'</button></div></div></div>'}).join("")||'<div class="empty">Nenhum cliente.</div>';
 }
-function renderSites(){
-  const sites=scoped(state.sites),members=scoped(state.members);
-  $("#sitesBody").innerHTML=sites.map(s=>{const count=members.filter(m=>m.site_id===s.id&&m.active).length;const action=actor.role==="site_admin"?"":'<button class="'+(s.active?"danger":"success")+'" data-site-active="'+s.id+'" data-org="'+s.organization_id+'" data-next="'+(!s.active)+'">'+(s.active?"Bloquear":"Reativar")+'</button>';return '<tr><td><b>'+esc(s.code)+'</b> — '+esc(s.name)+'</td><td>'+esc(s.city||"—")+'</td><td>'+count+'</td><td>'+badge(s.active?"Ativo":"Bloqueado")+'</td><td>'+action+'</td></tr>'}).join("")||'<tr><td colspan="5" class="empty">Nenhuma base cadastrada.</td></tr>';
-}
 function renderRoleOptions(){
-  let opts=[];
-  if(actor.is_master)opts=[["member","Operador"],["site_admin","Administrador de Base"],["admin","Administrador do Cliente"]];
-  else if(actor.role==="client_admin")opts=[["member","Operador"],["site_admin","Administrador de Base"]];
-  else opts=[["member","Operador"]];
+  const opts=[["member","Operador"],["admin","Administrador do Cliente"]];
   const html=opts.map(x=>'<option value="'+x[0]+'">'+x[1]+'</option>').join("");
   $("#newRole").innerHTML=html;$("#editRole").innerHTML=html;
-  const siteOpts='<option value="">Sem base específica</option>'+scoped(state.sites).filter(s=>s.active).map(s=>'<option value="'+s.id+'">'+esc(s.code+" — "+s.name)+'</option>').join("");
-  $("#newSite").innerHTML=siteOpts;$("#editSite").innerHTML=siteOpts;
-  if(actor.role==="site_admin"){$("#newSite").value=actor.site_id;$("#newSite").disabled=true}
 }
 function renderUsers(){
   const members=scoped(state.members);
-  $("#usersBody").innerHTML=members.map(m=>{const p=profileBy(m.user_id);if(!p)return"";const s=siteBy(m.site_id),canEdit=actor.is_master||actor.role==="client_admin"||(actor.role==="site_admin"&&m.site_id===actor.site_id&&m.role==="member");const access=(m.mobile_allowed?"Mobile ":"")+(m.desktop_allowed?"Desktop":"")||"Painel apenas";const buttons=canEdit?'<button class="ghost" data-edit-user="'+m.user_id+'">Editar</button> '+(m.user_id===actor.id?"":'<button class="'+(m.active&&p.active?"danger":"success")+'" data-user-active="'+m.user_id+'" data-org="'+m.organization_id+'" data-next="'+(!(m.active&&p.active))+'">'+(m.active&&p.active?"Bloquear":"Liberar")+'</button>'):"";return '<tr><td><b>'+esc(p.full_name||p.username)+'</b><br><span class="muted">'+esc(p.email||"")+'</span></td><td>'+esc(s?s.code+" — "+s.name:"—")+'</td><td>'+esc(roleLabel(m.role))+'</td><td>'+esc(access)+'</td><td>'+badge(m.active&&p.active?"Ativo":"Bloqueado")+'</td><td>'+buttons+'</td></tr>'}).join("")||'<tr><td colspan="6" class="empty">Nenhum usuário.</td></tr>';
+  $("#usersBody").innerHTML=members.map(m=>{
+    const p=profileBy(m.user_id); if(!p)return"";
+    const canEdit=actor.is_master||actor.role==="client_admin";
+    const access=(m.mobile_allowed?"Mobile ":"")+(m.desktop_allowed?"Desktop":"")||"Painel apenas";
+    const buttons=canEdit?'<button class="ghost" data-edit-user="'+m.user_id+'">Editar</button> '+(m.user_id===actor.id?"":'<button class="'+(m.active&&p.active?"danger":"success")+'" data-user-active="'+m.user_id+'" data-org="'+m.organization_id+'" data-next="'+(!(m.active&&p.active))+'">'+(m.active&&p.active?"Bloquear":"Liberar")+'</button>'):"";
+    return '<tr><td><b>'+esc(p.full_name||p.username)+'</b><br><span class="muted">'+esc(p.email||"")+'</span></td><td>'+esc(roleLabel(m.role))+'</td><td>'+esc(access)+'</td><td>'+badge(m.active&&p.active?"Ativo":"Bloqueado")+'</td><td>'+buttons+'</td></tr>';
+  }).join("")||'<tr><td colspan="5" class="empty">Nenhum usuário.</td></tr>';
 }
 function renderDevices(){
   const devices=scoped(state.devices);
-  $("#devicesBody").innerHTML=devices.map(d=>{const p=profileBy(d.user_id),m=memberByUser(d.user_id),s=siteBy(m?.site_id);const other=devices.find(x=>x.id!==d.id&&x.user_id===d.user_id&&x.kind===d.kind&&x.status==="active");let act=d.status==="active"?'<button class="danger" data-revoke-device="'+d.id+'">Revogar</button>':'<button class="success" data-approve-device="'+d.id+'">'+(other?"Substituir aparelho":"Autorizar")+'</button>';return '<tr class="'+(d.status==="pending"?"pending":"")+'"><td><b>'+esc(d.display_name||deviceCode(d))+'</b><br><span class="muted">GeoRede ID: '+esc(deviceCode(d))+'</span></td><td>'+esc(p?.full_name||p?.email||"—")+'</td><td>'+esc(s?s.code:"—")+'</td><td>'+esc(d.kind==="mobile"?"Mobile":"Desktop")+'</td><td>'+badge(d.status)+'</td><td>'+fmt(d.last_seen_at)+'</td><td>'+act+'</td></tr>'}).join("")||'<tr><td colspan="7" class="empty">Nenhum dispositivo.</td></tr>';
+  $("#devicesBody").innerHTML=devices.map(d=>{
+    const p=profileBy(d.user_id);
+    const other=devices.find(x=>x.id!==d.id&&x.user_id===d.user_id&&x.kind===d.kind&&x.status==="active");
+    const act=d.status==="active"?'<button class="danger" data-revoke-device="'+d.id+'">Revogar</button>':'<button class="success" data-approve-device="'+d.id+'">'+(other?"Substituir aparelho":"Autorizar")+'</button>';
+    return '<tr class="'+(d.status==="pending"?"pending":"")+'"><td><b>'+esc(d.display_name||deviceCode(d))+'</b><br><span class="muted">GeoRede ID: '+esc(deviceCode(d))+'</span></td><td>'+esc(p?.full_name||p?.email||"—")+'</td><td>'+esc(d.kind==="mobile"?"Mobile":"Desktop")+'</td><td>'+badge(d.status)+'</td><td>'+fmt(d.last_seen_at)+'</td><td>'+act+'</td></tr>';
+  }).join("")||'<tr><td colspan="6" class="empty">Nenhum dispositivo.</td></tr>';
 }
 function renderAudit(){
   $("#auditBody").innerHTML=scoped(state.events).map(e=>{const uid=e.details?.user_id||e.details?.new_user_id;const p=profileBy(uid);return '<tr><td>'+fmt(e.created_at)+'</td><td>'+esc(e.event_type)+'</td><td>'+esc(p?.full_name||uid||"—")+'</td><td><span class="muted">'+esc(JSON.stringify(e.details||{}))+'</span></td></tr>'}).join("")||'<tr><td colspan="4" class="empty">Sem eventos neste escopo.</td></tr>';
@@ -281,15 +265,13 @@ $("#logoutBtn").addEventListener("click",async()=>{await supabase.auth.signOut()
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>openTab(b.dataset.tab)));
 $("#scopeOrg").addEventListener("change",()=>{selectedOrgId=$("#scopeOrg").value;render()});
 $("#clientForm").addEventListener("submit",async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target).entries());try{await api("create_client",d);notify("Cliente cadastrado.");e.target.reset();await load()}catch(err){notify(err.message,true)}});
-$("#siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!selectedOrgId)return;const d=Object.fromEntries(new FormData(e.target).entries());try{await api("create_site",{organization_id:selectedOrgId,...d});notify("Base cadastrada.");e.target.reset();await load()}catch(err){notify(err.message,true)}});
-$("#userForm").addEventListener("submit",async e=>{e.preventDefault();if(!selectedOrgId)return;const fd=new FormData(e.target);const d=Object.fromEntries(fd.entries());d.mobile_allowed=fd.has("mobile_allowed");d.desktop_allowed=fd.has("desktop_allowed");if(actor.role==="site_admin")d.site_id=actor.site_id;try{await api("create_user",{organization_id:selectedOrgId,...d});notify("Usuário criado.");e.target.reset();renderRoleOptions();await load()}catch(err){notify(err.message,true)}});
+$("#userForm").addEventListener("submit",async e=>{e.preventDefault();if(!selectedOrgId)return;const fd=new FormData(e.target);const d=Object.fromEntries(fd.entries());d.mobile_allowed=fd.has("mobile_allowed");d.desktop_allowed=fd.has("desktop_allowed");try{await api("create_user",{organization_id:selectedOrgId,...d});notify("Usuário criado.");e.target.reset();renderRoleOptions();await load()}catch(err){notify(err.message,true)}});
 $("#editUserForm").addEventListener("submit",async e=>{e.preventDefault();const fd=new FormData(e.target),d=Object.fromEntries(fd.entries());d.mobile_allowed=fd.has("mobile_allowed");d.desktop_allowed=fd.has("desktop_allowed");try{await api("update_user",{organization_id:selectedOrgId,...d});$("#editDialog").close();notify("Usuário atualizado.");await load()}catch(err){notify(err.message,true)}});
 $("#cancelEdit").addEventListener("click",()=>$("#editDialog").close());
 document.body.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;try{
   if(t.dataset.openClient){selectedOrgId=t.dataset.openClient;$("#scopeOrg").value=selectedOrgId;render();openTab("overview")}
   else if(t.dataset.clientActive){await api("set_client_active",{organization_id:t.dataset.clientActive,active:t.dataset.next==="true"});notify("Cliente atualizado.");await load()}
-  else if(t.dataset.siteActive){await api("set_site_active",{organization_id:t.dataset.org,site_id:t.dataset.siteActive,active:t.dataset.next==="true"});notify("Base atualizada.");await load()}
-  else if(t.dataset.editUser){const m=memberByUser(t.dataset.editUser),p=profileBy(t.dataset.editUser);if(!m||!p)return;const f=$("#editUserForm");f.elements.user_id.value=m.user_id;f.elements.full_name.value=p.full_name||p.username||"";f.elements.email.value=p.email||"";renderRoleOptions();f.elements.member_role.value=m.role;f.elements.site_id.value=m.site_id||"";f.elements.mobile_allowed.checked=!!m.mobile_allowed;f.elements.desktop_allowed.checked=!!m.desktop_allowed;$("#editDialog").showModal()}
+  else if(t.dataset.editUser){const m=memberByUser(t.dataset.editUser),p=profileBy(t.dataset.editUser);if(!m||!p)return;const f=$("#editUserForm");f.elements.user_id.value=m.user_id;f.elements.full_name.value=p.full_name||p.username||"";f.elements.email.value=p.email||"";renderRoleOptions();f.elements.member_role.value=m.role;f.elements.mobile_allowed.checked=!!m.mobile_allowed;f.elements.desktop_allowed.checked=!!m.desktop_allowed;$("#editDialog").showModal()}
   else if(t.dataset.userActive){await api("set_user_active",{organization_id:t.dataset.org,user_id:t.dataset.userActive,active:t.dataset.next==="true"});notify("Usuário atualizado.");await load()}
   else if(t.dataset.approveDevice){const r=await api("approve_device",{device_id:t.dataset.approveDevice});notify(r.message||"Dispositivo autorizado.");await load()}
   else if(t.dataset.revokeDevice){const r=await api("revoke_device",{device_id:t.dataset.revokeDevice});notify(r.message||"Dispositivo revogado.");await load()}
