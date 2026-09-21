@@ -627,8 +627,8 @@ dialog::backdrop{
       <h3>Novo usuário</h3>
       <div class="hint">O usuário ficará automaticamente vinculado ao cliente aberto.</div>
       <label class="field">Nome completo / Equipe<input name="full_name" required></label>
-      <label class="field">E-mail<input name="email" type="email" required></label>
-      <label class="field">Senha temporária<input name="password" type="password" minlength="8" required></label>
+      <label class="field">E-mail<input name="email" type="email" autocomplete="off" required></label>
+      <label class="field">Senha temporária<input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
       <label class="field">Perfil<select name="member_role" id="newRole"></select></label>
       <div class="checkrow">
         <label><input name="mobile_allowed" type="checkbox" checked> Mobile</label>
@@ -655,6 +655,7 @@ dialog::backdrop{
     <label class="field">Nome<input name="full_name" required></label>
     <label class="field">E-mail<input name="email" type="email" required></label>
     <label class="field">Perfil<select name="member_role" id="editRole"></select></label>
+    <label class="field">Nova senha temporária <span class="muted">(opcional)</span><input name="new_password" type="password" minlength="8" autocomplete="new-password" placeholder="Preencha somente para redefinir"></label>
     <div class="checkrow">
       <label><input name="mobile_allowed" type="checkbox"> Mobile</label>
       <label><input name="desktop_allowed" type="checkbox"> Desktop</label>
@@ -810,7 +811,7 @@ $("#cancelEdit").addEventListener("click",()=>$("#editDialog").close());
 document.body.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;try{
   if(t.dataset.openClient){selectedOrgId=t.dataset.openClient;currentMode="client";currentClientTab="overview";$("#scopeOrg").value=selectedOrgId;render();applyMode()}
   else if(t.dataset.clientActive){await api("set_client_active",{organization_id:t.dataset.clientActive,active:t.dataset.next==="true"});notify("Cliente atualizado.");await load()}
-  else if(t.dataset.editUser){const m=memberByUser(t.dataset.editUser),p=profileBy(t.dataset.editUser);if(!m||!p)return;const f=$("#editUserForm");f.elements.user_id.value=m.user_id;f.elements.full_name.value=p.full_name||p.username||"";f.elements.email.value=p.email||"";renderRoleOptions();f.elements.member_role.value=m.role;f.elements.mobile_allowed.checked=!!m.mobile_allowed;f.elements.desktop_allowed.checked=!!m.desktop_allowed;$("#editDialog").showModal()}
+  else if(t.dataset.editUser){const m=memberByUser(t.dataset.editUser),p=profileBy(t.dataset.editUser);if(!m||!p)return;const f=$("#editUserForm");f.elements.user_id.value=m.user_id;f.elements.full_name.value=p.full_name||p.username||"";f.elements.email.value=p.email||"";f.elements.new_password.value="";renderRoleOptions();f.elements.member_role.value=m.role;f.elements.mobile_allowed.checked=!!m.mobile_allowed;f.elements.desktop_allowed.checked=!!m.desktop_allowed;$("#editDialog").showModal()}
   else if(t.dataset.userActive){await api("set_user_active",{organization_id:t.dataset.org,user_id:t.dataset.userActive,active:t.dataset.next==="true"});notify("Usuário atualizado.");await load()}
   else if(t.dataset.approveDevice){const r=await api("approve_device",{device_id:t.dataset.approveDevice});notify(r.message||"Dispositivo autorizado.");await load()}
   else if(t.dataset.revokeDevice){const r=await api("revoke_device",{device_id:t.dataset.revokeDevice});notify(r.message||"Dispositivo revogado.");await load()}
