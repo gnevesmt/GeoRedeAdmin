@@ -1,3 +1,3 @@
-// Populate only with the isolated staging project's URL and publishable key.
-// Never place a service_role/secret key here. Production is deliberately refused.
+// Populate with the approved existing project's URL and publishable key after deployment.
+// Never place a service_role/secret key here. Empty configuration prevents requests.
 window.GEOREDE_CONFIG = { supabaseUrl: '', publishableKey: '' };
