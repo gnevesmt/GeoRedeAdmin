@@ -1,0 +1,12 @@
+{
+  "name": "georede-admin-homologation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/ui.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
