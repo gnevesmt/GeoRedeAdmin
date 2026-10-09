@@ -1,3 +1,2 @@
-// Populate with the approved existing project's URL and publishable key after deployment.
-// Never place a service_role/secret key here. Empty configuration prevents requests.
-window.GEOREDE_CONFIG = { supabaseUrl: '', publishableKey: '' };
+// Public client configuration. Private signing material remains in Supabase Vault.
+window.GEOREDE_CONFIG = {"supabaseUrl": "https://uzsmsecjgmzlfdafyjai.supabase.co", "publishableKey": "sb_publishable_KP6pUOtCB5U_KvA2Z25ghw_n-Xqqbmq"};
