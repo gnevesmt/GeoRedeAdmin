@@ -1,3 +1,4 @@
+import {createReleasePanel} from './releases.js';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cfg=window.GEOREDE_CONFIG||{};let session,role,clients=[],plans=[],data={},org,editing;
@@ -5,8 +6,22 @@ function notice(message,bad=false){$('#notice').hidden=false;$('#notice').textCo
 function configured(){if(!cfg.supabaseUrl||!cfg.publishableKey)throw Error('Configure o projeto Supabase antes de entrar.');const url=new URL(cfg.supabaseUrl);if(url.protocol!=='https:'||url.username||url.password||url.port||!['','/'].includes(url.pathname)||url.search||url.hash)throw Error('Informe a URL HTTPS pública do projeto, sem credenciais ou caminhos.');}
 async function http(path,body,withAuth=true){configured();const r=await fetch(cfg.supabaseUrl.replace(/\/$/,'')+path,{method:'POST',headers:{'content-type':'application/json',apikey:cfg.publishableKey,...(withAuth?{authorization:'Bearer '+session.access_token}:{})},body:JSON.stringify(body)});const j=await r.json();if(!r.ok||j.error)throw Error(j.error||j.message||'Operação não concluída.');return j;}
 async function api(action,values={}){if(session.expires_at*1000<Date.now()+60000)session=await http('/auth/v1/token?grant_type=refresh_token',{refresh_token:session.refresh_token},false);return http('/functions/v1/georede-access-v2',{action,organization_id:org,...values});}
+async function releaseRequest(action,values={},file=null,progress=()=>{}) {
+ if(!session)throw Error('Entre novamente com o login Master.');
+ if(session.expires_at*1000<Date.now()+60000)session=await http('/auth/v1/token?grant_type=refresh_token',{refresh_token:session.refresh_token},false);
+ return new Promise((resolve,reject)=>{
+  const xhr=new XMLHttpRequest();xhr.open('POST',cfg.supabaseUrl.replace(/\/$/,'')+'/functions/v1/pontogeo-release-admin'+(file?'?action=analyze':''));
+  xhr.setRequestHeader('apikey',cfg.publishableKey);xhr.setRequestHeader('authorization','Bearer '+session.access_token);
+  xhr.setRequestHeader('content-type',file?'application/vnd.android.package-archive':'application/json');xhr.responseType='json';xhr.timeout=150000;
+  xhr.upload.onprogress=event=>{if(event.lengthComputable)progress(Math.round(event.loaded*100/event.total));};
+  xhr.onload=()=>{const result=xhr.response;if(xhr.status<200||xhr.status>=300||!result||result.error)reject(Error(result?.error||'A publicação não foi concluída. Atualize o histórico.'));else resolve(result);};
+  xhr.onerror=xhr.ontimeout=()=>reject(Error('A conexão foi interrompida. Atualize o histórico para conferir a situação.'));
+  xhr.send(file||JSON.stringify({action,...values}));
+ });
+}
+const releasePanel=createReleasePanel(releaseRequest);
 async function loadClients(){const r=await api('clients');role=r.role;clients=r.clients;plans=r.plans;$('#roleName').textContent=role==='master'?'Master • administração central':'Administrador Desktop • filiais atribuídas';org=clients.some(c=>c.id===org)?org:clients[0]?.id;$('#clientSelect').innerHTML=clients.map(c=>`<option value="${esc(c.id)}">${esc(c.trade_name||c.legal_name)}</option>`).join('');$('#clientSelect').value=org||'';await refresh();}
-async function refresh(){data=org?await api('dashboard'):{};render();$('#newUser').disabled=!org;$('#newBranch').disabled=!org;$('#rulesForm button.primary').disabled=!org;$$('[data-master]').forEach(e=>e.hidden=role!=='master');}
+async function refresh(){data=org?await api('dashboard'):{};render();$('#newUser').disabled=!org;$('#newBranch').disabled=!org;$('#rulesForm button.primary').disabled=!org;$$('[data-master]').forEach(e=>e.hidden=role!=='master');releasePanel.setAccess(role==='master');}
 function render(){
  const branches=data.branches||[],users=data.users||[],rules=data.rules||{};
  $('#branchCount').textContent=branches.length;$('#seatCount').textContent=branches.reduce((n,b)=>n+b.used,0)+' / '+branches.reduce((n,b)=>n+b.mobile_limit,0);$('#expiry').textContent=data.license?.current_period_end?new Date(data.license.current_period_end).toLocaleDateString('pt-BR'):'—';$('#offline').textContent=(rules.offline_hours??72)+' horas';
@@ -31,7 +46,7 @@ $('#loginForm').onsubmit=async e=>{e.preventDefault();const button=e.target.quer
 $('#logout').onclick=async()=>{try{await http('/auth/v1/logout',{});}catch{}session=null;location.reload();};
 $('#clientSelect').onchange=async e=>{org=e.target.value;try{await refresh();}catch(e){notice(e.message,true);}};
 $('#refresh').onclick=async()=>{try{await loadClients();notice('Informações atualizadas.');}catch(e){notice(e.message,true);}};
-$$('[data-tab]').forEach(b=>b.onclick=()=>{$$('[data-tab]').forEach(x=>x.setAttribute('aria-selected',x===b));$$('[data-panel]').forEach(x=>x.hidden=x.dataset.panel!==b.dataset.tab);});
+$$('[data-tab]').forEach(b=>b.onclick=()=>{$$('[data-tab]').forEach(x=>x.setAttribute('aria-selected',x===b));$$('[data-panel]').forEach(x=>x.hidden=x.dataset.panel!==b.dataset.tab);$('#app>.top').hidden=b.dataset.tab==='updates';$('.metrics').hidden=b.dataset.tab==='updates';if(b.dataset.tab==='updates')releasePanel.load();});
 $('#newUser').onclick=()=>userEditor();$('#cancel').onclick=()=>$('#editor').close();
 $('#editorForm').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button[type="submit"]');b.disabled=true;try{await editing(new FormData(e.target));$('#editor').close();e.target.reset();await loadClients();notice('Alteração salva no ambiente de homologação.');}catch(e){$('#editorError').textContent=e.message;}finally{b.disabled=false;}};
 $('#newBranch').onclick=()=>branchEditor();
@@ -39,10 +54,11 @@ function branchEditor(b){open(b?'Editar filial':'Cadastrar filial',input('Nome d
 $('#newClient').onclick=()=>open('Cadastrar cliente',input('Razão social','legal_name','','text','required')+input('Nome fantasia','trade_name')+input('Documento','document')+`<label>Plano<select name="plan_id">${plans.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>`+input('Vencimento','expires_at','','datetime-local','required'),fd=>{const v=Object.fromEntries(fd);v.expires_at=new Date(v.expires_at).toISOString();return api('create_client',v);});
 $('#rulesForm').onsubmit=async e=>{e.preventDefault();try{const v=Object.fromEntries(new FormData(e.target));v.expires_at=new Date(v.expires_at).toISOString();await api('set_rules',v);await refresh();notice('Regras atualizadas.');}catch(e){notice(e.message,true);}};
 $('#enable').onclick=async()=>{try{await api('enable_client');await refresh();}catch(e){notice(e.message,true);}};
-document.body.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;try{
+document.body.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b||b.closest('#updatesPanel')||b.closest('#publishConfirm'))return;try{
  if(b.dataset.editUser)userEditor(data.users.find(u=>u.user_id===b.dataset.editUser));
  else if(b.dataset.editBranch)branchEditor(data.branches.find(x=>x.id===b.dataset.editBranch));
  else if(b.dataset.password)open('Redefinir senha',input('Nova senha','password','','password','required minlength="8" autocomplete="new-password"'),fd=>api('reset_password',{user_id:b.dataset.password,password:fd.get('password')}));
  else if(b.dataset.assign){const current=(data.assignments||[]).filter(x=>x.user_id===b.dataset.assign).map(x=>x.branch_id);open('Filiais do Administrador Desktop',data.branches.map(x=>`<label class="check"><input type="checkbox" name="branch_ids" value="${esc(x.id)}" ${current.includes(x.id)?'checked':''}>${esc(x.name)}</label>`).join(''),fd=>api('set_admin_branches',{user_id:b.dataset.assign,branch_ids:fd.getAll('branch_ids')}));}
  else if(b.dataset.approve||b.dataset.revoke){b.disabled=true;await api(b.dataset.approve?'approve_device':'revoke_device',{device_id:b.dataset.approve||b.dataset.revoke});await refresh();notice('Situação do aparelho atualizada.');}
  }catch(e){notice(e.message,true);}finally{b.disabled=false;}});
+

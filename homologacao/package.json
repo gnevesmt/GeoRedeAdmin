@@ -1,12 +1,13 @@
 {
   "name": "georede-admin-homologation",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/ui.test.mjs"
+    "test": "node tests/ui.test.mjs && node --test tests/releases.test.mjs"
   },
   "devDependencies": {
+    "linkedom": "0.18.12",
     "playwright": "1.62.1"
   }
 }

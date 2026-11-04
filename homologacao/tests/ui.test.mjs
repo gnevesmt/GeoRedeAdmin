@@ -1,5 +1,5 @@
 import {createRequire} from 'node:module';import assert from 'node:assert/strict';import fs from 'node:fs';
-const {createServer}=await import('node:http');const server=createServer((req,res)=>{const name=req.url==='/'?'index.html':req.url.split('?')[0].slice(1);if(!['index.html','app.js','config.js'].includes(name)){res.writeHead(404);res.end();return;}res.setHeader('content-type',name.endsWith('.js')?'text/javascript':'text/html');res.end(fs.readFileSync(new URL('../'+name,import.meta.url)));});await new Promise(resolve=>server.listen(8765,'127.0.0.1',resolve));
+const {createServer}=await import('node:http');const server=createServer((req,res)=>{const name=req.url==='/'?'index.html':req.url.split('?')[0].slice(1);if(!['index.html','app.js','config.js','releases.js'].includes(name)){res.writeHead(404);res.end();return;}res.setHeader('content-type',name.endsWith('.js')?'text/javascript':'text/html');res.end(fs.readFileSync(new URL('../'+name,import.meta.url)));});await new Promise(resolve=>server.listen(8765,'127.0.0.1',resolve));
 const {chromium}=await import('playwright');
 // Exercise the approved existing host, with every HTTP request intercepted.
 const backendUrl='https://uzsmsecjgmzlfdafyjai.supabase.co';
@@ -48,3 +48,4 @@ for(const role of ['master','client_admin']){
 }
 console.log(passed+' browser flows passed (HTTP fixtures, not live Supabase).');fs.writeFileSync('ui-test-results.json',JSON.stringify({passed,auth:'HTTP fixtures',roles:['master','client_admin'],fresh_catalog:true,password_toggle:["login","create_user","reset_password"],password_preserved:true,hidden_on_reopen:true,mobile_viewport:360},null,2));
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
+
