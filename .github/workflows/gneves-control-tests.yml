@@ -1,0 +1,36 @@
+name: GNEVES Control - testes
+on:
+  pull_request:
+    paths:
+      - 'gneves-control/**'
+      - '.github/workflows/gneves-control-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui-and-releases:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gneves-control
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: gneves-control/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Salvar capturas de homologação
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gneves-control-previas
+          if-no-files-found: ignore
+          path: |
+            gneves-control/GeoRedeAdmin-homologacao.png
+            gneves-control/GNEVES-Control-Office.png
+            gneves-control/GNEVES-Control-SIGER.png
+            gneves-control/GNEVES-Control-Homologacao-Leitura.png
