@@ -11,7 +11,7 @@ O painel foi criado em `gneves-control/` para preservar a versão atual de `homo
 
 ## Identidade e domínio
 
-Interface renomeada como **GNEVES Control**. Marca vetorial utilizada como recurso visual leve; a imagem PNG oficial recuperada da biblioteca pode ser substituída posteriormente pelo arquivo original na pasta `assets`. Endereço final planejado: `painel.gnevesmt.com.br`; DNS e hosting **não** foram alterados.
+Interface renomeada como **GNEVES Control**. A marca original recuperada da Biblioteca do ChatGPT foi incluída em `assets/gneves.webp` como miniatura otimizada com transparência (arquivo original preservado fora do repositório). Existe também uma representação vetorial opcional em `assets/gneves.svg`. Endereço final planejado: `painel.gnevesmt.com.br`; DNS e hosting **não** foram alterados.
 
 ## Segurança e implantação
 
@@ -21,4 +21,4 @@ Interface renomeada como **GNEVES Control**. Marca vetorial utilizada como recur
 4. Não transferir chaves service_role nem segredos para o navegador.
 5. Publicar a nova versão somente após homologação; manter versão antiga como rollback.
 
-**Estado atual:** nova interface e navegação preparadas no branch de desenvolvimento, sem implantação no domínio, sem alteração do backend e sem capacidade de publicação para Office/SIGER.
+**Estado atual:** nova interface e navegação preparadas no branch de desenvolvimento, sem implantação no domínio, sem alteração do backend e sem capacidade de publicação para Office/SIGER. CI executa testes de interface e publicações com dados sintéticos via pull request; nenhum teste de backend real foi executado.
