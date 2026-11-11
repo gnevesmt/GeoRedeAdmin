@@ -23,3 +23,13 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm test
+      - name: Salvar capturas de homologação
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gneves-control-previas
+          if-no-files-found: ignore
+          path: |
+            gneves-control/GeoRedeAdmin-homologacao.png
+            gneves-control/GNEVES-Control-Office.png
+            gneves-control/GNEVES-Control-SIGER.png
