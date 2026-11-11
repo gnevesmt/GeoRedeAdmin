@@ -3,13 +3,13 @@ const text=(id,value)=>{$(id).textContent=value;};
 const size=bytes=>(bytes/1000000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' MB';
 const date=value=>value?new Date(value).toLocaleString('pt-BR'):'—';
 const statuses={ready:'Pronta para publicar',publishing:'Publicação em andamento',published:'Publicada',cancelled:'Cancelada',expired:'Preparação expirada'};
-export function createReleasePanel(request){
+export function createReleasePanel(request,{readOnly=false}={}){
  let allowed=false,busy=false,candidate=null,history=[];
  const file=$('#releaseFile'),notes=$('#releaseNotes'),publish=$('#publishRelease'),cancel=$('#cancelRelease');
  function message(value,bad=false){const el=$('#releaseMessage');el.textContent=value;el.className=bad?'danger':'success';el.hidden=!value;}
  function sync(){
-  file.disabled=busy||!allowed;notes.disabled=busy||!candidate;publish.disabled=busy||!candidate||!notes.value.trim();
-  cancel.disabled=busy||!candidate;$('#refreshReleases').disabled=busy;
+  file.disabled=busy||!allowed||readOnly;notes.disabled=busy||!candidate||readOnly;publish.disabled=busy||!candidate||!notes.value.trim()||readOnly;
+  cancel.disabled=busy||!candidate||readOnly;$('#refreshReleases').disabled=busy;
   $('#releaseBusy').hidden=!busy;$('#releasePreview').hidden=!candidate;
  }
  function candidateView(metadata){
