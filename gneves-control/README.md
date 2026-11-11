@@ -21,4 +21,4 @@ Interface renomeada como **GNEVES Control**. A marca original recuperada da Bibl
 4. Não transferir chaves service_role nem segredos para o navegador.
 5. Publicar a nova versão somente após homologação; manter versão antiga como rollback.
 
-**Estado atual:** nova interface e navegação preparadas no branch de desenvolvimento, sem implantação no domínio, sem alteração do backend e sem capacidade de publicação para Office/SIGER. CI executa testes de interface e publicações com dados sintéticos via pull request; nenhum teste de backend real foi executado.
+**Estado atual:** ambiente para prévia do GNEVES Control, sem alteração do backend e sem publicação para Office/SIGER. A configuração de testes está em **modo consulta** (`readOnlyPreview:true`), bloqueando no cliente e na API as ações administrativas que alteram dados e publicam versões. O backend continua com as mesmas políticas de segurança. Não desative o modo consulta até concluir os testes de integração. CI executa testes de interface e publicações com dados sintéticos via pull request; nenhum teste de backend real foi executado.
