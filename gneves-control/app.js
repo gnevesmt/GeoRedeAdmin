@@ -2,12 +2,13 @@ import {createReleasePanel} from './releases.js';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Nome interno de configuração e endpoints mantidos para compatibilidade com o backend existente. 
-const cfg=window.GEOREDE_CONFIG||{};let session,role,clients=[],plans=[],data={},org,editing;
+const cfg=window.GEOREDE_CONFIG||{};const PREVIEW_MODE=cfg.readOnlyPreview===true;let session,role,clients=[],plans=[],data={},org,editing;
 function notice(message,bad=false){$('#notice').hidden=false;$('#notice').textContent=message;$('#notice').className=bad?'danger':'';}
 function configured(){if(!cfg.supabaseUrl||!cfg.publishableKey)throw Error('Configure o projeto Supabase antes de entrar.');const url=new URL(cfg.supabaseUrl);if(url.protocol!=='https:'||url.username||url.password||url.port||!['','/'].includes(url.pathname)||url.search||url.hash)throw Error('Informe a URL HTTPS pública do projeto, sem credenciais ou caminhos.');}
 async function http(path,body,withAuth=true){configured();const r=await fetch(cfg.supabaseUrl.replace(/\/$/,'')+path,{method:'POST',headers:{'content-type':'application/json',apikey:cfg.publishableKey,...(withAuth?{authorization:'Bearer '+session.access_token}:{})},body:JSON.stringify(body)});const j=await r.json();if(!r.ok||j.error)throw Error(j.error||j.message||'Operação não concluída.');return j;}
-async function api(action,values={}){if(session.expires_at*1000<Date.now()+60000)session=await http('/auth/v1/token?grant_type=refresh_token',{refresh_token:session.refresh_token},false);return http('/functions/v1/georede-access-v2',{action,organization_id:org,...values});}
+async function api(action,values={}){if(PREVIEW_MODE&&!['clients','dashboard'].includes(action))throw Error('Homologação em modo consulta: alterações administrativas estão bloqueadas.');if(session.expires_at*1000<Date.now()+60000)session=await http('/auth/v1/token?grant_type=refresh_token',{refresh_token:session.refresh_token},false);return http('/functions/v1/georede-access-v2',{action,organization_id:org,...values});}
 async function releaseRequest(action,values={},file=null,progress=()=>{}) {
+ if(PREVIEW_MODE&&action!=='list')throw Error('Homologação em modo consulta: publicação de APKs bloqueada.');
  if(!session)throw Error('Entre novamente com o login Master.');
  if(session.expires_at*1000<Date.now()+60000)session=await http('/auth/v1/token?grant_type=refresh_token',{refresh_token:session.refresh_token},false);
  return new Promise((resolve,reject)=>{
@@ -22,7 +23,7 @@ async function releaseRequest(action,values={},file=null,progress=()=>{}) {
 }
 const releasePanel=createReleasePanel(releaseRequest);
 async function loadClients(){const r=await api('clients');role=r.role;clients=r.clients;plans=r.plans;$('#roleName').textContent=role==='master'?'Master • administração central':'Administrador Desktop • filiais atribuídas';org=clients.some(c=>c.id===org)?org:clients[0]?.id;$('#clientSelect').innerHTML=clients.map(c=>`<option value="${esc(c.id)}">${esc(c.trade_name||c.legal_name)}</option>`).join('');$('#clientSelect').value=org||'';await refresh();}
-async function refresh(){data=org?await api('dashboard'):{};render();$('#newUser').disabled=!org;$('#newBranch').disabled=!org;$('#rulesForm button.primary').disabled=!org;$$('[data-master]').forEach(e=>e.hidden=role!=='master');releasePanel.setAccess(role==='master');}
+async function refresh(){data=org?await api('dashboard'):{};render();$('#newUser').disabled=!org;$('#newBranch').disabled=!org;$('#rulesForm button.primary').disabled=!org;$$('[data-master]').forEach(e=>e.hidden=role!=='master');releasePanel.setAccess(role==='master');lockPreviewControls();}
 function render(){
  const branches=data.branches||[],users=data.users||[],rules=data.rules||{};
  $('#branchCount').textContent=branches.length;$('#seatCount').textContent=branches.reduce((n,b)=>n+b.used,0)+' / '+branches.reduce((n,b)=>n+b.mobile_limit,0);$('#expiry').textContent=data.license?.current_period_end?new Date(data.license.current_period_end).toLocaleDateString('pt-BR'):'—';$('#offline').textContent=(rules.offline_hours??72)+' horas';
@@ -81,3 +82,17 @@ function activateProduct(product){
  $('#sigerModule').hidden=product!=='siger';
 }
 $$('[data-product]').forEach(button=>button.addEventListener('click',()=>activateProduct(button.dataset.product)));
+
+// Modo de homologação apenas consulta: testes reais não podem alterar clientes, licenças ou APKs.
+function lockPreviewControls(){
+ if(!PREVIEW_MODE)return;
+ const banner=document.querySelector('#previewBanner');if(banner)banner.hidden=false;
+ document.querySelectorAll('#app button').forEach(b=>{if(!b.hasAttribute('data-product')&&!b.hasAttribute('data-tab')&&!['refresh','refreshReleases'].includes(b.id))b.disabled=true;});
+ document.querySelectorAll('#app input:not([type=hidden]),#app textarea').forEach(x=>x.disabled=true);
+}
+if(PREVIEW_MODE){
+ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!b.closest('#app'))return;
+ if(b.hasAttribute('data-tab')||b.hasAttribute('data-product')||['refresh','refreshReleases'].includes(b.id))return;
+ e.preventDefault();e.stopImmediatePropagation();notice('Ambiente de testes somente para consulta. Nenhuma alteração será efetuada.');},true);
+ document.querySelector('#releaseFile')?.addEventListener('click',e=>e.preventDefault(),true);
+}
