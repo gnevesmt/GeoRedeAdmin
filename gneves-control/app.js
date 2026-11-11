@@ -1,7 +1,8 @@
 import {createReleasePanel} from './releases.js';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-// Nome interno de configuração e endpoints mantidos para compatibilidade com o backend existente.\nconst cfg=window.GEOREDE_CONFIG||{};let session,role,clients=[],plans=[],data={},org,editing;
+// Nome interno de configuração e endpoints mantidos para compatibilidade com o backend existente. 
+const cfg=window.GEOREDE_CONFIG||{};let session,role,clients=[],plans=[],data={},org,editing;
 function notice(message,bad=false){$('#notice').hidden=false;$('#notice').textContent=message;$('#notice').className=bad?'danger':'';}
 function configured(){if(!cfg.supabaseUrl||!cfg.publishableKey)throw Error('Configure o projeto Supabase antes de entrar.');const url=new URL(cfg.supabaseUrl);if(url.protocol!=='https:'||url.username||url.password||url.port||!['','/'].includes(url.pathname)||url.search||url.hash)throw Error('Informe a URL HTTPS pública do projeto, sem credenciais ou caminhos.');}
 async function http(path,body,withAuth=true){configured();const r=await fetch(cfg.supabaseUrl.replace(/\/$/,'')+path,{method:'POST',headers:{'content-type':'application/json',apikey:cfg.publishableKey,...(withAuth?{authorization:'Bearer '+session.access_token}:{})},body:JSON.stringify(body)});const j=await r.json();if(!r.ok||j.error)throw Error(j.error||j.message||'Operação não concluída.');return j;}
