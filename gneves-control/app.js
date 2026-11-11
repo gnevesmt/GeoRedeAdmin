@@ -21,7 +21,7 @@ async function releaseRequest(action,values={},file=null,progress=()=>{}) {
   xhr.send(file||JSON.stringify({action,...values}));
  });
 }
-const releasePanel=createReleasePanel(releaseRequest);
+const releasePanel=createReleasePanel(releaseRequest,{readOnly:PREVIEW_MODE});
 async function loadClients(){const r=await api('clients');role=r.role;clients=r.clients;plans=r.plans;$('#roleName').textContent=role==='master'?'Master • administração central':'Administrador Desktop • filiais atribuídas';org=clients.some(c=>c.id===org)?org:clients[0]?.id;$('#clientSelect').innerHTML=clients.map(c=>`<option value="${esc(c.id)}">${esc(c.trade_name||c.legal_name)}</option>`).join('');$('#clientSelect').value=org||'';await refresh();}
 async function refresh(){data=org?await api('dashboard'):{};render();$('#newUser').disabled=!org;$('#newBranch').disabled=!org;$('#rulesForm button.primary').disabled=!org;$$('[data-master]').forEach(e=>e.hidden=role!=='master');releasePanel.setAccess(role==='master');lockPreviewControls();}
 function render(){
