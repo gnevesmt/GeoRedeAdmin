@@ -28,10 +28,10 @@ for(const role of ['master','client_admin']){
  if(role==='master') {
   const countBefore=calls.length;
   await page.locator('[data-product="office"]').click();
-  assert.equal(await page.locator('#officeModule').isVisible(),true);
+  assert.equal(await page.locator('#officeModule').isVisible(),true);await page.screenshot({path:'GNEVES-Control-Office.png',fullPage:true});
   assert.equal(await page.locator('#newUser').isVisible(),false);
   await page.locator('[data-product="siger"]').click();
-  assert.equal(await page.locator('#sigerModule').isVisible(),true);
+  assert.equal(await page.locator('#sigerModule').isVisible(),true);await page.screenshot({path:'GNEVES-Control-SIGER.png',fullPage:true});
   await page.locator('[data-product="pontogeo"]').click();
   assert.equal(await page.locator('#userRows').isVisible(),true);
   assert.equal(calls.length,countBefore);passed++;
