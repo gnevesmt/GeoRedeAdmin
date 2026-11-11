@@ -60,6 +60,43 @@ for(const role of ['master','client_admin']){
  await page.waitForFunction(()=>!document.querySelector('#newUser').disabled);assert.equal(created,true);assert.equal(await page.locator('#newUser').isEnabled(),true);assert.equal(await page.locator('#clientSelect').inputValue(),'new-client');passed++;
  await page.close();
 }
+
+{
+ // Staging live-preview guard must not allow mutations even if the user is Master.
+ const page=await browser.newPage();const calls=[];
+ await page.route('**/config.js',r=>r.fulfill({contentType:'text/javascript',body:'window.GEOREDE_CONFIG='+JSON.stringify({supabaseUrl:backendUrl,publishableKey:'test-publishable',readOnlyPreview:true})}));
+ await page.route(backendUrl+'/**',async r=>{
+   if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'}});
+   let body=r.request().postDataJSON();const action=body?.action;calls.push(action||'login');
+   let payload;
+   if(r.request().url().endsWith('/georede-access-login'))payload={access_token:'readonly-master-test',refresh_token:'none',expires_at:Math.floor(Date.now()/1000)+3600};
+   else if(action==='clients')payload={role:'master',clients:[{id:'org',legal_name:'Cliente Teste'}],plans:[]};
+   else if(action==='dashboard')payload={rules:{enabled:true,offline_hours:72,replacement_limit:2,replacement_window_days:30},license:{current_period_end:'2027-11-10'},branches:[],users:[],devices:[],assignments:[],replacements:[]};
+   else if(action==='list')payload={current:{version_name:'1.9.130',size_bytes:14000000},history:[]};
+   else throw Error('Unexpected staging write: '+action);
+   return r.fulfill({headers:{'Access-Control-Allow-Origin':'*'},contentType:'application/json',body:JSON.stringify(payload)});
+ });
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:8765');
+ await page.locator('[name=login]').fill('master.test');
+ await page.locator('[name=password]').fill('ReadonlyTest123');
+ await page.getByRole('button',{name:'Entrar',exact:true}).click();
+ await page.locator('#app').waitFor({state:'visible'});
+ assert.equal(await page.locator('#previewBanner').isVisible(),true);
+ assert.equal(await page.locator('#newUser').isDisabled(),true);
+ assert.equal(await page.locator('#newClient').isDisabled(),true);
+ await page.locator('[data-tab=updates]').click();
+ assert.equal(await page.locator('#releaseFile').isDisabled(),true);
+ await page.locator('[data-product=office]').click();
+ assert.equal(await page.locator('#officeModule').isVisible(),true);
+ await page.locator('[data-product=siger]').click();
+ assert.equal(await page.locator('#sigerModule').isVisible(),true);
+ await page.locator('[data-product=pontogeo]').click();
+ assert.deepEqual(errors,[]);
+ assert.ok(calls.every(x=>!x||['login','clients','dashboard','list'].includes(x)),JSON.stringify(calls));
+ await page.screenshot({path:'GNEVES-Control-Homologacao-Leitura.png',fullPage:true});passed++;await page.close();
+}
+
 console.log(passed+' browser flows passed (HTTP fixtures, not live Supabase).');fs.writeFileSync('ui-test-results.json',JSON.stringify({passed,auth:'HTTP fixtures',roles:['master','client_admin'],fresh_catalog:true,password_toggle:["login","create_user","reset_password"],password_preserved:true,hidden_on_reopen:true,mobile_viewport:360},null,2));
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
 
