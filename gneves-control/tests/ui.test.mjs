@@ -1,5 +1,5 @@
 import {createRequire} from 'node:module';import assert from 'node:assert/strict';import fs from 'node:fs';
-const {createServer}=await import('node:http');const server=createServer((req,res)=>{const name=req.url==='/'?'index.html':req.url.split('?')[0].slice(1);if(!['index.html','app.js','config.js','releases.js'].includes(name)){res.writeHead(404);res.end();return;}res.setHeader('content-type',name.endsWith('.js')?'text/javascript':'text/html');res.end(fs.readFileSync(new URL('../'+name,import.meta.url)));});await new Promise(resolve=>server.listen(8765,'127.0.0.1',resolve));
+const {createServer}=await import('node:http');const server=createServer((req,res)=>{const name=req.url==='/'?'index.html':req.url.split('?')[0].slice(1);if(!['index.html','app.js','config.js','releases.js','assets/gneves.webp'].includes(name)){res.writeHead(404);res.end();return;}res.setHeader('content-type',name.endsWith('.js')?'text/javascript':name.endsWith('.webp')?'image/webp':'text/html');res.end(fs.readFileSync(new URL('../'+name,import.meta.url)));});await new Promise(resolve=>server.listen(8765,'127.0.0.1',resolve));
 const {chromium}=await import('playwright');
 // Exercise the approved existing host, with every HTTP request intercepted.
 const backendUrl='https://uzsmsecjgmzlfdafyjai.supabase.co';
