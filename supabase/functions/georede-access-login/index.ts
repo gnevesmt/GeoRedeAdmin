@@ -15,6 +15,7 @@ const admin = createClient(url, serverKey(), {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
 });
 const allowedOrigins = new Set((Deno.env.get("GEOREDE_ADMIN_ALLOWED_ORIGINS") || "https://gnevesmt.github.io").split(",").map(x=>x.trim()));
+allowedOrigins.add('https://gneves-control.pages.dev');
 const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
