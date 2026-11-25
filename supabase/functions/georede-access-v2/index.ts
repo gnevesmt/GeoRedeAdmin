@@ -5,6 +5,7 @@ const secretKeys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const secret=secretKeys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const origins=(Deno.env.get('GEOREDE_ADMIN_ALLOWED_ORIGINS')||'https://gnevesmt.github.io').split(',').map(v=>v.trim()).filter(Boolean);
 origins.push('https://gneves-control.pages.dev');
+origins.push('https://painel.gnevesmt.com.br');
 if(!url||!secret||!origins.length)throw new Error('Configure URL, chave do servidor e origens autorizadas.');
 const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
 Deno.serve(accessHandler(admin,origins));

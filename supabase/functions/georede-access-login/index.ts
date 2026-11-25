@@ -16,6 +16,7 @@ const admin = createClient(url, serverKey(), {
 });
 const allowedOrigins = new Set((Deno.env.get("GEOREDE_ADMIN_ALLOWED_ORIGINS") || "https://gnevesmt.github.io").split(",").map(x=>x.trim()));
 allowedOrigins.add('https://gneves-control.pages.dev');
+allowedOrigins.add('https://painel.gnevesmt.com.br');
 const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }

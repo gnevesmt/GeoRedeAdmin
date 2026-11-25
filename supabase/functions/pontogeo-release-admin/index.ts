@@ -11,4 +11,5 @@ const inflate=(bytes,size)=>inflateSync(bytes,{out:new Uint8Array(size)});
 const service=releaseService(admin,inflate,url);
 const origins=(Deno.env.get('GEOREDE_ADMIN_ALLOWED_ORIGINS')||'https://gnevesmt.github.io').split(',').map(s=>s.trim()).filter(Boolean);
 origins.push('https://gneves-control.pages.dev');
+origins.push('https://painel.gnevesmt.com.br');
 Deno.serve(releaseHandler({authenticate:token=>authenticateMaster(admin,token),service},origins));
